@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 google-api-python-client = "*"
 python-dotenv = "*"
+mecab-python3 = "*"
+pandas = "*"
 
 [dev-packages]
 

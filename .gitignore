@@ -2,4 +2,4 @@
 .venv
 __pycache__
 **hoge**
-*.json
+*.jsonsong_timestamps_complete.csv

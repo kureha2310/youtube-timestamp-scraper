@@ -8,7 +8,6 @@ from typing import List, Optional
 
 from googleapiclient import discovery
 from dotenv import load_dotenv
-import pandas as pd
 
 # MeCabのインポート（オプション）
 try:
@@ -19,8 +18,12 @@ except (ImportError, RuntimeError) as e:
     print(f"MeCab not available: {type(e).__name__}. Using simple hiragana conversion.")
     mecab_reading = None
 
-from infoclass import VideoInfo, CommentInfo, TimeStamp
-from utils import aligned_json_dump
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from utils.infoclass import VideoInfo, CommentInfo, TimeStamp
+from utils.utils import aligned_json_dump
 
 load_dotenv()
 API_KEY = os.getenv('API_KEY')
@@ -168,28 +171,87 @@ class EnhancedAnalyzer:
 
     def clean_title(self, text: str) -> str:
         """先頭ナンバリングを除去"""
-        text = re.sub(
-            r"^\s*(?:\(?\s*\d+\s*\)?[\.\)：:：\-]*\s*|\[\s*\d+\]\s*)",
-            "",
-            text
-        )
+        # 全角数字を半角に統一
+        text = text.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
+
+        # より包括的なナンバリングパターン（複数回適用して再帰的に除去）
+        # "01. 曲名" "1) 曲名" "【1】曲名" "(1) 曲名" など
+        # 複数のナンバリングが連続している場合もある（例: "01. 1) 曲名"）
+        max_iterations = 3  # 最大3回繰り返す
+
+        for _ in range(max_iterations):
+            original = text
+            patterns = [
+                r"^\s*\d{1,3}[\.\。\)）\]】\-ー・]\s*",  # "01." "01。" "1)" "1】" "1-" "1・" など（全角ピリオドも含む）
+                r"^\s*[\(\(【\[]\s*\d{1,3}\s*[\)\)】\]]\s*",  # "(1)" "【1】" "[1]" など
+                r"^\s*\d{1,3}\s+",  # "01 " (数字+スペース)
+                r"^\s*[第]\d{1,3}[曲話回章]\s*",  # "第1曲" "第1話" など
+            ]
+
+            for pattern in patterns:
+                text = re.sub(pattern, "", text)
+
+            # 変化がなくなったら終了
+            if text == original:
+                break
+
         text = re.sub(r"<br\s*/?>", " ", text, flags=re.IGNORECASE)
+
+        # 先頭の装飾記号を除去（&, ＆, ※, ★, ☆, ■, □, ◆, ◇, ●, ○, ▲, △, ▼, ▽など）
+        text = re.sub(r"^\s*[&＆※★☆■□◆◇●○▲△▼▽➤➡→⇒►▶►・]+\s*", "", text)
+
         return text.strip()
+
+    def is_valid_song_entry(self, title: str, artist: str) -> bool:
+        """有効な曲エントリかどうかを判定"""
+        # アーティスト名がない場合は無効
+        if not artist:
+            return False
+
+        # 曲名が短すぎる（1-2文字）または数字・記号のみの場合は無効
+        if len(title.strip()) <= 2:
+            return False
+
+        # 数字と記号のみで構成されている場合は無効
+        if re.match(r'^[\d\s\.\-\(\)\[\]　]+$', title):
+            return False
+
+        # ナンバリングパターンのみ（"01." "1)" など）の場合は無効
+        if re.match(r'^\d+[\.\)\-\s]*$', title):
+            return False
+
+        # 無効なキーワードパターン
+        invalid_patterns = [
+            r'^セトリ',
+            r'^タイムスタンプ',
+            r'^リスト',
+            r'^曲目',
+            r'^\d+曲目',
+            r'^BGM',
+        ]
+
+        for pattern in invalid_patterns:
+            if re.search(pattern, title, re.IGNORECASE):
+                return False
+
+        return True
 
     def parse_song_title_artist(self, title: str) -> tuple[str, str]:
         """曲名とアーティストを分離"""
         title = self.clean_title(title)
-        
+
         # 「曲 / 歌手」形式で分割
         parts = re.split(r"\s*/\s*", title, maxsplit=1)
         if len(parts) == 2:
-            song_title, artist = parts[0].strip(), parts[1].strip()
+            # 分割後も各部分に対してclean_titleを適用（ナンバリングが曲名側に残っている場合）
+            song_title = self.clean_title(parts[0].strip())
+            artist = parts[1].strip()
             return song_title, artist
         else:
             return title.strip(), ""
 
-def is_singing_stream(title: str, description: str) -> bool:
-    """既存の歌動画判定ロジック（そのまま使用）"""
+def is_singing_stream(title: str, description: str, comments: Optional[List[str]] = None) -> bool:
+    """歌動画判定ロジック（コメント分析強化版）"""
     combined_text = f"{title} {description}".lower()
     singing_keywords = [
         "歌", "うた", "歌枠", "うたわく", "歌配信", "singing", "sing",
@@ -225,6 +287,21 @@ def is_singing_stream(title: str, description: str) -> bool:
     timestamp_count = len(re.findall(r'\d{1,2}:\d{2}', description))
     if timestamp_count >= 3:
         singing_score += 2
+
+    # コメント分析による追加スコア
+    if comments:
+        comment_timestamp_count = 0
+        for comment in comments:
+            comment_timestamps = len(re.findall(r'\d{1,2}:\d{2}', comment))
+            if comment_timestamps >= 3:  # 1コメントに3つ以上のタイムスタンプ
+                comment_timestamp_count += 1
+
+        # コメントに多数のタイムスタンプがある場合、歌配信の可能性が高い
+        if comment_timestamp_count >= 2:
+            singing_score += 4
+        elif comment_timestamp_count >= 1:
+            singing_score += 2
+
     if singing_score >= 2 and exclude_score <= singing_score:
         return True
     elif singing_score >= 4:
@@ -316,7 +393,7 @@ def get_comments(video_id: str) -> list[CommentInfo]:
     return comment_list
 
 def main():
-    print("🎵 YouTube歌動画タイムスタンプ抽出ツール（統合版）")
+    print("YouTube歌動画タイムスタンプ抽出ツール（統合版）")
     print("=" * 60)
     
     analyzer = EnhancedAnalyzer()
@@ -334,7 +411,7 @@ def main():
     for upid in uploads_ids:
         video_info_list += get_video_info_in_playlist(upid)
 
-    # 2. 歌動画フィルタリング
+    # 2. 歌動画フィルタリング（コメント取得前に一次フィルタリング）
     filtered_video_list = []
     for vi in video_info_list:
         if is_singing_stream(vi.title, vi.description):
@@ -344,15 +421,34 @@ def main():
 
     print("\n=== 歌枠として検出された動画 ===")
     for i, vi in enumerate(filtered_video_list[:10]):
-        print(f"{i+1}. {vi.title}")
+        try:
+            print(f"{i+1}. {vi.title}")
+        except UnicodeEncodeError:
+            # 絵文字などが含まれる場合はエンコードして表示
+            safe_title = vi.title.encode('ascii', 'ignore').decode('ascii')
+            print(f"{i+1}. {safe_title} [...]")
     if len(filtered_video_list) > 10:
         print(f"... 他 {len(filtered_video_list) - 10} 件")
 
-    # 3. コメント取得
+    # 3. コメント取得 + 再フィルタリング
     print("\nコメントを取得中...")
+    secondary_filtered_list = []
     for i, video_info in enumerate(filtered_video_list):
-        print(f"{i+1}/{len(filtered_video_list)}: {video_info.title}")
+        try:
+            print(f"{i+1}/{len(filtered_video_list)}: {video_info.title}")
+        except UnicodeEncodeError:
+            print(f"{i+1}/{len(filtered_video_list)}: [title with emoji]")
         video_info.comments = get_comments(video_info.id)
+
+        # コメント情報を含めて再判定
+        comment_texts = [c.text_display for c in video_info.comments] if video_info.comments else []
+        if is_singing_stream(video_info.title, video_info.description, comment_texts):
+            secondary_filtered_list.append(video_info)
+        else:
+            print(f"  → コメント分析により除外")
+
+    filtered_video_list = secondary_filtered_list
+    print(f"\nコメント分析後の歌枠動画数: {len(filtered_video_list)}")
 
     # 4. タイムスタンプ抽出
     print("\nタイムスタンプを抽出中...")
@@ -363,18 +459,20 @@ def main():
     
     print(f"抽出されたタイムスタンプ数: {len(all_timestamps)}")
 
-    # 5. CSV形式に変換
+    # 5. CSV形式に変換（重複除去強化版）
     print("\nCSV形式に変換中...")
     rows = []
     seen = {}
+    duplicate_groups = {}  # 重複をグループ化
     idx = 1
 
+    # 第1パス: すべてのタイムスタンプをグループ化
     for entry in all_timestamps:
         video_id = entry.video_id
         raw_title = entry.text
         timestamp = entry.timestamp
         published_at = getattr(entry, 'stream_start', None) or entry.published_at
-        
+
         # 確度スコア計算（該当する動画を見つけて計算）
         confidence = 0.0
         for vi in filtered_video_list:
@@ -384,42 +482,87 @@ def main():
 
         song_title, artist = analyzer.parse_song_title_artist(raw_title)
 
-        # 歌手なしは除外
-        if not artist:
+        # 無効なエントリは除外（歌手なし、ナンバリングのみ、など）
+        if not analyzer.is_valid_song_entry(song_title, artist):
             continue
 
-        # 重複判定
-        key = (song_title.lower(), artist.lower(), video_id, timestamp)
-        if key in seen:
-            if re.match(r"^\s*\d+", raw_title):
-                continue
-        seen[key] = True
+        # タイムスタンプを秒に変換（±5秒以内は同じとみなす）
+        time_parts = timestamp.split(':')
+        total_seconds = 0
+        try:
+            if len(time_parts) == 2:  # mm:ss
+                total_seconds = int(time_parts[0]) * 60 + int(time_parts[1])
+            elif len(time_parts) == 3:  # hh:mm:ss
+                total_seconds = int(time_parts[0]) * 3600 + int(time_parts[1]) * 60 + int(time_parts[2])
+        except:
+            total_seconds = 0
+
+        # 正規化キー（曲名とアーティストの類似性、タイムスタンプの近さで判定）
+        normalized_key = (
+            song_title.lower().strip(),
+            artist.lower().strip(),
+            video_id,
+            total_seconds // 5  # 5秒単位で丸める
+        )
+
+        if normalized_key not in duplicate_groups:
+            duplicate_groups[normalized_key] = []
+
+        duplicate_groups[normalized_key].append({
+            'raw_title': raw_title,
+            'song_title': song_title,
+            'artist': artist,
+            'timestamp': timestamp,
+            'total_seconds': total_seconds,
+            'video_id': video_id,
+            'published_at': published_at,
+            'confidence': confidence,
+            'has_numbering': bool(re.match(r"^\s*\d+", raw_title))
+        })
+
+    # 第2パス: 各グループから最適なものを選択
+    for normalized_key, duplicates in duplicate_groups.items():
+        # 優先順位: ナンバリングなし > 詳細な曲名 > 長い曲名
+        best = max(duplicates, key=lambda x: (
+            not x['has_numbering'],  # ナンバリングがない方が優先
+            len(x['song_title']),     # 曲名が長い方が詳細
+            len(x['artist'])          # アーティスト名が長い方が詳細
+        ))
 
         # ジャンル判定
-        genre = analyzer.detect_genre(song_title, artist)
-        
+        genre = analyzer.detect_genre(best['song_title'], best['artist'])
+
         # ひらがな変換
-        search_text = analyzer.to_hiragana(song_title)
+        search_text = analyzer.to_hiragana(best['song_title'])
 
         # 日付をJSTへ
         try:
-            dt = datetime.fromisoformat((published_at or "").replace("Z", "+00:00"))
+            dt = datetime.fromisoformat((best['published_at'] or "").replace("Z", "+00:00"))
             date_str = dt.astimezone(timezone(timedelta(hours=9))).strftime("%Y/%m/%d")
         except Exception:
             date_str = ""
 
         rows.append([
             idx,
-            song_title,
-            artist,
-            search_text,  # ひらがな検索用
+            best['song_title'],
+            best['artist'],
+            search_text,
             genre,
-            timestamp,
+            best['timestamp'],
             date_str,
-            video_id,
-            f"{confidence:.2f}"  # 確度スコア
+            best['video_id'],
+            f"{best['confidence']:.2f}",
+            best['total_seconds']  # ソート用に追加（CSV出力時には除外）
         ])
         idx += 1
+
+    # 配信日とタイムスタンプでソート（古い順）
+    rows.sort(key=lambda x: (x[6], x[9]))  # 配信日、タイムスタンプ（秒）でソート
+
+    # No列を振り直し、ソート用の列を削除
+    for i, row in enumerate(rows, 1):
+        row[0] = i
+        row.pop()  # total_secondsを削除
 
     # 6. CSV出力
     output_file = "song_timestamps_complete.csv"
@@ -428,27 +571,27 @@ def main():
         writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア"])
         writer.writerows(rows)
 
-    print(f"\n✅ 完了！CSVを出力しました: {output_file}")
-    print(f"📊 統計:")
+    print(f"\n完了！CSVを出力しました: {output_file}")
+    print(f"統計:")
     print(f"   - 処理した動画数: {len(filtered_video_list)}")
     print(f"   - 抽出したタイムスタンプ数: {len(all_timestamps)}")
     print(f"   - 最終出力行数: {len(rows)}")
-    
+
     # 確度スコア統計
     if rows:
         scores = [float(row[8]) for row in rows]
         high_conf = len([s for s in scores if s > 0.7])
         med_conf = len([s for s in scores if 0.4 <= s <= 0.7])
         low_conf = len([s for s in scores if s < 0.4])
-        
+
         print(f"   - 高確度 (>0.7): {high_conf}件")
-        print(f"   - 中確度 (0.4-0.7): {med_conf}件")  
+        print(f"   - 中確度 (0.4-0.7): {med_conf}件")
         print(f"   - 低確度 (<0.4): {low_conf}件")
 
     # JSONファイルも保存（バックアップ用）
     vi_dict = [asdict(vi) for vi in filtered_video_list]
     aligned_json_dump(vi_dict, "comment_info.json")
-    print(f"📄 バックアップJSONも作成: comment_info.json")
+    print(f"バックアップJSONも作成: comment_info.json")
 
 if __name__ == "__main__":
     main()

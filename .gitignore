@@ -2,4 +2,16 @@
 .venv
 __pycache__
 **hoge**
-*.jsonsong_timestamps_complete.csv
+
+# 出力ファイル
+song_timestamps_complete.csv
+song_timestamps_enhanced.csv
+comment_info.json
+comment_info_enhanced.json
+missing_timestamps.csv
+
+# テスト/デバッグファイル
+test_*.py
+check_*.py
+raw_*.txt
+comment_preview.txt

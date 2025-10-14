@@ -20,11 +20,11 @@ except (ImportError, RuntimeError) as e:
     print(f"MeCab not available: {type(e).__name__}. Using simple hiragana conversion.")
     mecab_reading = None
 
-from infoclass import VideoInfo, CommentInfo, TimeStamp
-from utils import aligned_json_dump
-from enhanced_extractor import (
-    Config, EnhancedTimestampExtractor, 
-    EnhancedGenreClassifier, EnhancedSongParser, 
+from src.utils.infoclass import VideoInfo, CommentInfo, TimeStamp
+from src.utils.utils import aligned_json_dump
+from src.extractors.enhanced_extractor import (
+    Config, EnhancedTimestampExtractor,
+    EnhancedGenreClassifier, EnhancedSongParser,
     EnhancedTextCleaner
 )
 

@@ -106,24 +106,59 @@ class TimeStamp:
 
     @classmethod
     def _from_html_anchors(cls, video_id: str, video_title: str, published_at: str, text: str, stream_start: str = None) -> List["TimeStamp"]:
-        # HTMLリンク形式のタイムスタンプを抽出
-        # <a href="...&t=413">6:53</a> 1.サイハテ/小林オニキス feat. 初音ミク
-        pattern = r'<a href="[^"]*">(\d{1,2}:\d{2}(?::\d{2})?)</a>\s*(.+?)(?=<br>|<a href=|$)'
-        
+        # HTMLリンク形式のタイムスタンプを抽出（複数パターン対応）
         timestamp_list: List[TimeStamp] = []
-        
-        # 全体をマッチング（<br>で分割しない）
-        matches = re.finditer(pattern, text)
-        for match in matches:
-            timestamp = match.group(1)
-            content = match.group(2).strip()
-            
+
+        # パターン1: 標準形式
+        # <a href="...">6:53</a> 1.サイハテ/小林オニキス feat. 初音ミク
+        pattern1 = r'<a[^>]*>(\d{1,2}:\d{2}(?::\d{2})?)</a>\s*(.+?)(?=<br|<a |$)'
+
+        # パターン2: 数字が混在する形式
+        # 00:09 14</a> 01. 空も飛べるはず / スピッツ
+        pattern2 = r'(\d{1,2}:\d{2}(?::\d{2})?)\s*\d*</a>\s*(.+?)(?=<br|<a |$)'
+
+        # パターン3: より柔軟な形式
+        # <a ...>01:23</a> - 曲名 / アーティスト
+        pattern3 = r'<a[^>]*>(\d{1,2}:\d{2}(?::\d{2})?)</a>\s*[-–—:：・･]?\s*(.+?)(?=<br|<a |$)'
+
+        # パターン4: 分と秒が分離されている特殊形式 ★新規追加★
+        # 00:04 48</a> 01. マリーゴールド / あいみょん
+        # 00:42 52</a> 09. 晴る / ヨルシカ
+        pattern4 = r'(\d{1,2}):(\d{2})\s+(\d{2})</a>\s*(.+?)(?=<br|<a |$)'
+
+        all_patterns = [pattern1, pattern2, pattern3]
+
+        seen = set()  # 重複防止
+
+        # パターン4を先に処理（特殊形式）
+        matches4 = re.finditer(pattern4, text, re.MULTILINE | re.DOTALL)
+        for match in matches4:
+            # 分:秒 秒 を 分:秒:秒 に再構築
+            minutes = match.group(1)
+            first_seconds = match.group(2)
+            second_seconds = match.group(3)
+            timestamp = f"{minutes}:{first_seconds}:{second_seconds}"
+            content = match.group(4).strip()
+
+            # HTMLタグを除去
+            content = re.sub(r'<[^>]+>', '', content)
+
             # HTMLエスケープを元に戻す
             content = content.replace('&amp;', '&').replace('&#39;', "'").replace('&quot;', '"')
-            
-            # ナンバリングを除去（1. や (1) など）
-            content = re.sub(r'^\s*\d+[\.\)]\s*', '', content)
-            
+            content = content.replace('&lt;', '<').replace('&gt;', '>').replace('&nbsp;', ' ')
+
+            # 先頭のナンバリングを除去
+            content = re.sub(r'^\s*\d+[\.\)）\]】\-ー・:：]\s*', '', content)
+            content = re.sub(r'^\s*[\(\(【\[]\s*\d+\s*[\)\)】\]]\s*', '', content)
+
+            content = content.strip()
+
+            # 重複チェック
+            key = (timestamp, content.lower())
+            if key in seen:
+                continue
+            seen.add(key)
+
             if content and cls._is_valid_song_timestamp(timestamp, content):
                 timestamp_list.append(
                     cls(
@@ -136,33 +171,98 @@ class TimeStamp:
                         stream_start=stream_start
                     )
                 )
+
+        # 他のパターンを処理
+        for pattern in all_patterns:
+            matches = re.finditer(pattern, text, re.MULTILINE | re.DOTALL)
+            for match in matches:
+                timestamp = match.group(1)
+                content = match.group(2).strip()
+
+                # HTMLタグを除去
+                content = re.sub(r'<[^>]+>', '', content)
+
+                # HTMLエスケープを元に戻す
+                content = content.replace('&amp;', '&').replace('&#39;', "'").replace('&quot;', '"')
+                content = content.replace('&lt;', '<').replace('&gt;', '>').replace('&nbsp;', ' ')
+
+                # 先頭のナンバリングを除去（より包括的）
+                content = re.sub(r'^\s*\d+[\.\)）\]】\-ー・:：]\s*', '', content)
+                content = re.sub(r'^\s*[\(\(【\[]\s*\d+\s*[\)\)】\]]\s*', '', content)
+
+                content = content.strip()
+
+                # 重複チェック
+                key = (timestamp, content.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                if content and cls._is_valid_song_timestamp(timestamp, content):
+                    timestamp_list.append(
+                        cls(
+                            video_id=video_id,
+                            video_title=video_title,
+                            published_at=published_at,
+                            link=f"https://www.youtube.com/watch?v={video_id}&t={timestamp}",
+                            timestamp=timestamp,
+                            text=content,
+                            stream_start=stream_start
+                        )
+                    )
         return timestamp_list
 
     @classmethod
     def _from_plain_lines(cls, video_id: str, video_title: str, published_at: str, text: str, stream_start: str = None) -> List["TimeStamp"]:
         results: List[TimeStamp] = []
-        
+        seen = set()
+
         # \r\nを\nに統一、\rも処理
         text = text.replace('\r\n', '\n').replace('\r', '\n')
-        lines = [ln.strip() for ln in text.split('\n')]
-        
-        for line in lines:
-            if not line:
-                continue
-            
-            # タイムスタンプパターン: 行頭から開始（より柔軟に）
+
+        # 複数のパターンで抽出（より包括的）
+        patterns = [
+            # パターン1: 標準形式（スペース区切り）
             # 6:53 1.サイハテ/小林オニキス feat. 初音ミク
-            # 1:07:50 9.炉心融解/iroha(sasaki) feat. 鏡音リン
-            match = re.match(r'^(\d{1,2}:\d{2}(?::\d{2})?)\s+(.+)', line)
-            
-            if match:
+            r'(\d{1,2}:\d{2}(?::\d{2})?)\s+(.+?)(?=\n|\d{1,2}:\d{2}|$)',
+
+            # パターン2: 様々な区切り文字
+            # 00:04:48 - マリーゴールド / あいみょん
+            # 01:23:45 : 曲名 / アーティスト
+            # 02:34・曲名 / アーティスト
+            r'(\d{1,2}:\d{2}(?::\d{2})?)\s*[-–—:：・･/／]\s*(.+?)(?=\n|\d{1,2}:\d{2}|$)',
+
+            # パターン3: 括弧区切り
+            # 1:23) 曲名 / アーティスト
+            # (01:23) 曲名 / アーティスト
+            r'[\(\(]?(\d{1,2}:\d{2}(?::\d{2})?)\s*[\)\)]\s*(.+?)(?=\n|\d{1,2}:\d{2}|$)',
+
+            # パターン4: 改行なしの連続形式
+            # 00:42:52 09. 晴る / ヨルシカ
+            r'(\d{1,2}:\d{2}(?::\d{2})?)\s*\d*\.\s*(.+?)(?=\s+\d{1,2}:\d{2}|$)',
+        ]
+
+        for pattern in patterns:
+            matches = re.finditer(pattern, text, re.MULTILINE | re.DOTALL)
+            for match in matches:
                 timestamp = match.group(1)
                 content = match.group(2).strip()
-                
-                # ナンバリングを除去
-                content = re.sub(r'^\s*\d+[\.\)]\s*', '', content)
-                
-                if cls._is_valid_song_timestamp(timestamp, content):
+
+                # ナンバリングを除去（より包括的）
+                content = re.sub(r'^\s*\d+[\.\)）\]】\-ー・:：]\s*', '', content)
+                content = re.sub(r'^\s*[\(\(【\[]\s*\d+\s*[\)\)】\]]\s*', '', content)
+
+                # 余分な記号を除去
+                content = re.sub(r'^[-–—:：・･/／\s]+', '', content)
+                content = content.strip()
+
+                # 重複チェック
+                key = (timestamp, content.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                if content and cls._is_valid_song_timestamp(timestamp, content):
                     results.append(
                         cls(
                             video_id=video_id,
@@ -174,7 +274,7 @@ class TimeStamp:
                             stream_start=stream_start
                         )
                     )
-        
+
         return results
     
     @classmethod
@@ -183,36 +283,40 @@ class TimeStamp:
         invalid_patterns = [
             r'^https?://',                    # URLで始まる
             r'^www\.',                        # www.で始まる
-            r'^[\d\s\-\.]+$',                 # 数字と記号のみ
-            r'^～|^〜',                       # 装飾文字で始まる
+            r'^[\d\s\-\.、，。]+$',           # 数字と記号のみ
+            r'youtube\.com',                  # YouTube URLを含む
+            r'^UCY85ViSyTU5Wy_bwsUVjkdA',   # チャンネルIDを含む
         ]
-        
-        # 特定のキーワードは除外（ただし「声入り」「告知」などは許可）
+
+        # 特定のキーワードは除外（ただし楽曲っぽいものは許可）
         exclude_keywords = [
-            'セトリ', 'タイムスタンプ', '配信開始', 'くしゃみ', '伸び', '背伸び'
+            '配信開始', 'くしゃみ', '待機画面', '待機中', '開演', '終演'
         ]
-        
+
         for pattern in invalid_patterns:
             if re.search(pattern, content, re.IGNORECASE):
                 return False
-        
-        # 除外キーワードをチェック（完全一致のみ）
+
+        # 除外キーワードをチェック（部分一致）
         content_lower = content.lower()
         for keyword in exclude_keywords:
-            if keyword.lower() == content_lower or f'{keyword}＆タイムスタンプ' in content or f'セトリ＆{keyword}' in content:
+            if keyword.lower() in content_lower and '/' not in content:
+                # スラッシュがない場合のみ除外（曲名/アーティスト形式は許可）
                 return False
-        
+
+        # 内容が短すぎる場合は除外（ただしスラッシュがあれば許可）
+        if len(content.strip()) < 2 and '/' not in content:
+            return False
+
         # 有効な楽曲かチェック
-        # 「声入り」「告知」などは許可するが、曲名っぽいものを優先
-        # スラッシュがあれば「曲名/アーティスト」形式の可能性が高い
-        if '/' in content or 'feat.' in content or 'feat ' in content or 'CV.' in content or 'CV:' in content:
+        # スラッシュやfeat.があれば「曲名/アーティスト」形式の可能性が高い
+        if '/' in content or 'feat.' in content or 'feat ' in content or 'CV.' in content or 'CV:' in content or 'by ' in content:
             return True
-        
+
         # 文字（日本語、英語）が含まれている
         if re.search(r'[a-zA-Z\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]', content):
-            # 声入り、告知などの単純なものも一旦許可
             return True
-        
+
         return False
     
     @classmethod

@@ -48,19 +48,22 @@ class EnhancedAnalyzer:
             "初音ミク","鏡音リン","鏡音レン","巡音ルカ","MEIKO","KAITO",
             "GUMI","IA","重音テト","ジミーサムP","wowaka","ryo","supercell",
             "みきとP","かいりきベア","DECO*27","Neru","40mP","バルーン","n-buna",
-            "ピノキオピー","Chinozo","Orangestar","じん","すりぃ","八王子P","蝶々P"
+            "ピノキオピー","Chinozo","Orangestar","じん","すりぃ","八王子P","蝶々P",
+            "kemu","Kanaria","Omoi","夏代孝明","メル","doriko","ハチ","EasyPop",
+            "Junky","kemu voxx","石風呂","トーマ","ぬゆり","れるりり","femme fatale",
+            "ナノウ","nobodyknows","john","Guiano","Dixie Flatline","日向電工","柊マグネタイト"
         ]
         self.anime_keywords = [
-            "涼宮ハルヒ","千石撫子","MAHO堂","どうぶつビスケッツ","平野綾",
-            "茅原実里","後藤邑子","ZONE","KANA-BOON","UNISON SQUARE GARDEN",
-            "AKINO","井上あずみ","中島義実","さユり","大黒摩季","松任谷由実"
+            "涼宮ハルヒ","千石撫子","MAHO堂","どうぶつビスケッツ",
+            "放課後ティータイム"
         ]
         self.anime_titles = [
             "God knows","恋愛サーキュレーション","シルエット","ブルーバード",
             "ハレ晴れユカイ","君の知らない物語","創世のアクエリオン",
             "ようこそジャパリパークへ","おジャ魔女カーニバル",
-            "シュガーソングとビターステップ","Zzz","夢をかなえてドラえもん",
-            "ラヴァーズ","オレンジ","花の塔","ミカヅキ"
+            "シュガーソングとビターステップ","夢をかなえてドラえもん",
+            "ルージュの伝言","にんげんっていいな","君をのせて",
+            "タッチ","secret base","ハム太郎"
         ]
 
     def to_hiragana(self, text: str) -> str:
@@ -208,13 +211,15 @@ class EnhancedAnalyzer:
         if not artist:
             return False
 
-        # 曲名が短すぎる（1-2文字）または数字・記号のみの場合は無効
-        if len(title.strip()) <= 2:
-            return False
-
         # 数字と記号のみで構成されている場合は無効
         if re.match(r'^[\d\s\.\-\(\)\[\]　]+$', title):
             return False
+
+        # 曲名が短い（1-2文字）場合は、有効な文字（日本語、英字）が含まれているかチェック
+        if len(title.strip()) <= 2:
+            # 日本語（漢字、ひらがな、カタカナ）または英字が含まれていればOK
+            if not re.search(r'[a-zA-Zぁ-んァ-ヶー一-龯]', title):
+                return False
 
         # ナンバリングパターンのみ（"01." "1)" など）の場合は無効
         if re.match(r'^\d+[\.\)\-\s]*$', title):

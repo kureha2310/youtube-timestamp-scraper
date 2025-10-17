@@ -143,9 +143,18 @@ class TimeStamp:
             # HTMLタグを除去
             content = re.sub(r'<[^>]+>', '', content)
 
+            # 不完全なHTMLタグも除去（開始タグのみ、終了タグのみ）
+            content = re.sub(r'</?[a-zA-Z][^>]*', '', content)
+
+            # 単独の < > を除去
+            content = re.sub(r'[<>]', '', content)
+
             # HTMLエスケープを元に戻す
             content = content.replace('&amp;', '&').replace('&#39;', "'").replace('&quot;', '"')
             content = content.replace('&lt;', '<').replace('&gt;', '>').replace('&nbsp;', ' ')
+
+            # エスケープ復元後に残った < > も除去
+            content = re.sub(r'[<>]', '', content)
 
             # 先頭のナンバリングを除去
             content = re.sub(r'^\s*\d+[\.\)）\]】\-ー・:：]\s*', '', content)
@@ -182,14 +191,25 @@ class TimeStamp:
                 # HTMLタグを除去
                 content = re.sub(r'<[^>]+>', '', content)
 
+                # 不完全なHTMLタグも除去（開始タグのみ、終了タグのみ）
+                content = re.sub(r'</?[a-zA-Z][^>]*', '', content)
+
+                # 単独の < > を除去
+                content = re.sub(r'[<>]', '', content)
+
                 # HTMLエスケープを元に戻す
                 content = content.replace('&amp;', '&').replace('&#39;', "'").replace('&quot;', '"')
                 content = content.replace('&lt;', '<').replace('&gt;', '>').replace('&nbsp;', ' ')
+
+                # エスケープ復元後に残った < > も除去
+                content = re.sub(r'[<>]', '', content)
 
                 # 先頭のナンバリングを除去（より包括的）
                 content = re.sub(r'^\s*\d+[\.\)）\]】\-ー・:：]\s*', '', content)
                 content = re.sub(r'^\s*[\(\(【\[]\s*\d+\s*[\)\)】\]]\s*', '', content)
 
+                # 末尾の記号を除去（バックスラッシュ、スペース等）
+                content = re.sub(r'[\\\s]+$', '', content)
                 content = content.strip()
 
                 # 重複チェック
@@ -228,9 +248,10 @@ class TimeStamp:
 
             # パターン2: 様々な区切り文字
             # 00:04:48 - マリーゴールド / あいみょん
-            # 01:23:45 : 曲名 / アーティスト
+            # 01:23:45 ： 曲名 / アーティスト（全角コロンのみ）
             # 02:34・曲名 / アーティスト
-            r'(\d{1,2}:\d{2}(?::\d{2})?)\s*[-–—:：・･/／]\s*(.+?)(?=\n|\d{1,2}:\d{2}|$)',
+            # 注意: 半角コロン「:」は削除（タイムスタンプの秒部分と誤認識するため）
+            r'(\d{1,2}:\d{2}(?::\d{2})?)\s*[-–—：・･/／]\s*(.+?)(?=\n|\d{1,2}:\d{2}|$)',
 
             # パターン3: 括弧区切り
             # 1:23) 曲名 / アーティスト
@@ -248,12 +269,24 @@ class TimeStamp:
                 timestamp = match.group(1)
                 content = match.group(2).strip()
 
+                # HTMLタグを除去（念のため）
+                content = re.sub(r'<[^>]+>', '', content)
+                content = re.sub(r'</?[a-zA-Z][^>]*', '', content)
+                content = re.sub(r'[<>]', '', content)
+
+                # HTMLエスケープを元に戻す
+                content = content.replace('&amp;', '&').replace('&#39;', "'").replace('&quot;', '"')
+                content = content.replace('&lt;', '<').replace('&gt;', '>').replace('&nbsp;', ' ')
+                content = re.sub(r'[<>]', '', content)
+
                 # ナンバリングを除去（より包括的）
                 content = re.sub(r'^\s*\d+[\.\)）\]】\-ー・:：]\s*', '', content)
                 content = re.sub(r'^\s*[\(\(【\[]\s*\d+\s*[\)\)】\]]\s*', '', content)
 
                 # 余分な記号を除去
                 content = re.sub(r'^[-–—:：・･/／\s]+', '', content)
+                # 末尾の記号を除去（バックスラッシュ、スペース等）
+                content = re.sub(r'[\\\s]+$', '', content)
                 content = content.strip()
 
                 # 重複チェック
@@ -334,13 +367,89 @@ class TimeStamp:
         return False
 
     @classmethod
+    def _fix_timestamp_typos(cls, text: str) -> str:
+        """タイムスタンプの誤植を修正"""
+        # パターン1: 1:145:01 -> 1:45:01 (3桁の分を2桁に修正)
+        # (\d{1,2}):(\d{3,}):(\d{2}) のような形式を検出して修正
+        def fix_minutes(match):
+            hours = match.group(1)
+            minutes = match.group(2)
+            seconds = match.group(3)
+
+            # 分が3桁以上の場合、最初の1桁を削除
+            if len(minutes) >= 3:
+                minutes = minutes[1:]  # 例: "145" -> "45"
+
+            return f"{hours}:{minutes}:{seconds}"
+
+        text = re.sub(r'(\d{1,2}):(\d{3,}):(\d{2})', fix_minutes, text)
+
+        return text
+
+    @classmethod
     def from_text(cls, video_id: str, video_title: str, published_at: str, text: str, stream_start: str = None) -> List["TimeStamp"]:
+        # タイムスタンプの誤植を修正
+        text = cls._fix_timestamp_typos(text)
+
         out: List[TimeStamp] = []
         out.extend(cls._from_html_anchors(video_id, video_title, published_at, text, stream_start))
         out.extend(cls._from_plain_lines(video_id, video_title, published_at, text, stream_start))
+
+        # 正規化処理
         for ts in out:
             ts.normalize()
-        return out
+
+        # 重複除去（HTML形式とプレーンテキスト形式の両方から取得した場合）
+        # 同じ曲名・動画IDでも時間が大きく離れている場合は別エントリとして保持
+        seen = {}
+        deduplicated = []
+
+        for ts in out:
+            # 曲名を正規化（小文字、前後空白除去）
+            normalized_text = ts.text.lower().strip()
+
+            # タイムスタンプを秒に変換
+            parts = ts.timestamp.split(':')
+            total_seconds = 0
+            try:
+                if len(parts) == 2:  # mm:ss
+                    total_seconds = int(parts[0]) * 60 + int(parts[1])
+                elif len(parts) == 3:  # hh:mm:ss
+                    total_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            except (ValueError, IndexError):
+                total_seconds = 0
+
+            # 同じ曲名・動画IDの既存エントリをチェック
+            key_base = (video_id, normalized_text)
+
+            # 近い時間（30秒以内）のエントリが既に存在するかチェック
+            is_duplicate = False
+            for existing_key, existing_ts in seen.items():
+                if existing_key[0] == video_id and existing_key[1] == normalized_text:
+                    # 既存エントリとの時間差を計算
+                    existing_parts = existing_ts.timestamp.split(':')
+                    existing_seconds = 0
+                    try:
+                        if len(existing_parts) == 2:
+                            existing_seconds = int(existing_parts[0]) * 60 + int(existing_parts[1])
+                        elif len(existing_parts) == 3:
+                            existing_seconds = int(existing_parts[0]) * 3600 + int(existing_parts[1]) * 60 + int(existing_parts[2])
+                    except (ValueError, IndexError):
+                        existing_seconds = 0
+
+                    # 30秒以内なら重複とみなす
+                    time_diff = abs(total_seconds - existing_seconds)
+                    if time_diff <= 30:
+                        is_duplicate = True
+                        break
+
+            if not is_duplicate:
+                # ユニークなキーを作成（曲名 + 秒数の範囲）
+                unique_key = (video_id, normalized_text, total_seconds // 60)  # 1分単位で区別
+                seen[unique_key] = ts
+                deduplicated.append(ts)
+
+        return deduplicated
 
     @classmethod
     def from_videoinfo(cls, video_info: "VideoInfo") -> List["TimeStamp"]:

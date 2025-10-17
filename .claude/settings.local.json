@@ -4,7 +4,12 @@
       "Bash(python:*)",
       "Bash(pip install:*)",
       "Bash(dir:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(mkdir:*)",
+      "Bash(move \"README_システム解説.md\" docs )",
+      "Bash(move \"README_初心者向け解説.md\" docs )",
+      "Bash(move \"README_仕組み解説.md\" docs )",
+      "Bash(move:*)"
     ],
     "deny": [],
     "ask": []

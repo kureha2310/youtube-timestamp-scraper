@@ -6,8 +6,8 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: 'dist',
-    emptyOutDir: true,
+    outDir: '../docs',
+    emptyOutDir: false, // docs/data を保持するため
   },
   resolve: {
     alias: {

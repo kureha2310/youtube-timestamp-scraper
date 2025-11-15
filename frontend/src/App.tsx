@@ -129,10 +129,10 @@ function App() {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                🎵 歌枠タイムスタンプ一覧
+                📺 タイムスタンプ一覧
               </h1>
               <p className="text-xs text-gray-600 mt-0.5">
-                5人の配信者の歌ってみた楽曲データベース
+                5人の配信者のタイムスタンプデータベース
               </p>
             </div>
             <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
@@ -180,9 +180,13 @@ function App() {
                 }`}
               >
                 <img
-                  src={channel.thumbnail}
+                  src={channel.thumbnail || `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name)}&size=64&background=6366f1&color=fff&bold=true`}
                   alt={channel.name}
                   className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name)}&size=64&background=6366f1&color=fff&bold=true`;
+                  }}
                 />
                 <div className="flex-1 text-left min-w-0">
                   <div className="font-medium text-xs truncate">{channel.name}</div>
@@ -234,12 +238,12 @@ function App() {
         {/* 統計 */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-3 text-white shadow-sm">
-            <div className="text-xl font-bold">{data?.total_count.toLocaleString()}</div>
-            <div className="text-indigo-100 text-xs">総楽曲数</div>
+            <div className="text-xl font-bold">{data?.total_count.toLocaleString() || 0}</div>
+            <div className="text-indigo-100 text-xs">総タイムスタンプ数</div>
           </div>
           <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg p-3 text-white shadow-sm">
             <div className="text-xl font-bold">
-              {new Set(data?.timestamps.map((t) => t.動画ID)).size.toLocaleString()}
+              {data ? new Set(data.timestamps.map((t) => t.動画ID)).size.toLocaleString() : 0}
             </div>
             <div className="text-pink-100 text-xs">配信数</div>
           </div>
@@ -268,37 +272,50 @@ function App() {
                 {filteredData.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
-                      検索条件に一致する楽曲が見つかりませんでした
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="text-4xl opacity-50">🔍</div>
+                        <p>検索条件に一致するタイムスタンプが見つかりませんでした</p>
+                        <button
+                          onClick={() => {
+                            setSearchTerm('');
+                            setGenreFilter('');
+                            setActiveChannels(new Set());
+                          }}
+                          className="mt-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                        >
+                          フィルターをリセット
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   filteredData.map((item, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-2 py-2 text-xs text-gray-900">{index + 1}</td>
-                      <td className="px-2 py-2">
-                        <div className="text-sm font-medium text-gray-900">{item.曲}</div>
-                        <div className="text-xs text-gray-500 md:hidden">{item['歌手-ユニット'] || '-'}</div>
-                      </td>
-                      <td className="px-2 py-2 text-sm text-gray-600 hidden md:table-cell">{item['歌手-ユニット'] || '-'}</td>
-                      <td className="px-2 py-2">
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${getGenreClass(item.ジャンル)}`}>
-                          {item.ジャンル}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2 text-xs font-mono text-gray-900 hidden lg:table-cell">{item.タイムスタンプ}</td>
-                      <td className="px-2 py-2 text-xs text-gray-600 hidden lg:table-cell">{item.配信日}</td>
-                      <td className="px-2 py-2">
-                        <a
-                          href={`https://www.youtube.com/watch?v=${item.動画ID}&t=${convertTimestampToSeconds(item.タイムスタンプ)}s`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white text-xs rounded hover:from-indigo-600 hover:to-indigo-700 transition-all whitespace-nowrap"
-                        >
-                          ▶
-                        </a>
-                      </td>
-                    </tr>
-                  ))
+                      <tr key={`${item.動画ID}-${item.タイムスタンプ}-${index}`} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-2 py-2 text-xs text-gray-900">{index + 1}</td>
+                        <td className="px-2 py-2">
+                          <div className="text-sm font-medium text-gray-900">{item.曲 || '-'}</div>
+                          <div className="text-xs text-gray-500 md:hidden">{item['歌手-ユニット'] || '-'}</div>
+                        </td>
+                        <td className="px-2 py-2 text-sm text-gray-600 hidden md:table-cell">{item['歌手-ユニット'] || '-'}</td>
+                        <td className="px-2 py-2">
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${getGenreClass(item.ジャンル)}`}>
+                            {item.ジャンル || 'その他'}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 text-xs font-mono text-gray-900 hidden lg:table-cell">{item.タイムスタンプ || '-'}</td>
+                        <td className="px-2 py-2 text-xs text-gray-600 hidden lg:table-cell">{item.配信日 || '-'}</td>
+                        <td className="px-2 py-2">
+                          <a
+                            href={`https://www.youtube.com/watch?v=${item.動画ID}&t=${convertTimestampToSeconds(item.タイムスタンプ)}s`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white text-xs rounded hover:from-indigo-600 hover:to-indigo-700 transition-all whitespace-nowrap"
+                          >
+                            ▶ 視聴
+                          </a>
+                        </td>
+                      </tr>
+                    ))
                 )}
               </tbody>
             </table>
@@ -308,7 +325,7 @@ function App() {
 
       {/* フッター */}
       <footer className="mt-12 py-6 text-center text-xs md:text-sm text-gray-500 border-t border-gray-200">
-        <p>© 2025 歌枠タイムスタンプ一覧 | Data powered by YouTube Data API v3</p>
+        <p>© 2025 タイムスタンプ一覧 | Data powered by YouTube Data API v3</p>
         <p className="mt-1">最終更新: {data?.last_updated}</p>
       </footer>
     </div>

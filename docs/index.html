@@ -3,24 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>歌枠タイムスタンプ一覧</title>
+    <meta name="description" content="YouTube配信のタイムスタンプ一覧。楽曲検索・ジャンルフィルター・配信者別絞り込みに対応">
+    <title>📺 タイムスタンプ一覧</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <header>
         <div class="container">
-            <h1>歌枠タイムスタンプ一覧</h1>
-            <p class="subtitle">5人の配信者の歌ってみた楽曲データベース</p>
+            <div class="header-content">
+                <div class="header-title">
+                    <h1><i class="fas fa-clock"></i> タイムスタンプ一覧</h1>
+                    <p class="subtitle">5人の配信者のタイムスタンプデータベース</p>
+                </div>
+                <div class="header-actions">
+                    <div class="mode-toggle">
+                        <button class="mode-btn" data-mode="singing" onclick="switchMode('singing')">
+                            <i class="fas fa-music"></i> 歌枠のみ
+                        </button>
+                        <button class="mode-btn active" data-mode="all" onclick="switchMode('all')">
+                            <i class="fas fa-list"></i> 総合
+                        </button>
+                    </div>
+                    <button class="theme-toggle" id="themeToggle" aria-label="テーマ切り替え">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </header>
 
     <main class="container">
         <!-- チャンネルフィルター -->
         <section class="channel-filter">
-            <h2>配信者で絞り込み</h2>
+            <div class="section-header">
+                <h2><i class="fas fa-users"></i> 配信者で絞り込み</h2>
+                <button class="clear-filters" id="clearFilters" style="display: none;">
+                    <i class="fas fa-times"></i> フィルターをクリア
+                </button>
+            </div>
             <div class="channel-grid" id="channelFilter">
                 <!-- JavaScriptで動的に生成 -->
             </div>
@@ -29,44 +53,63 @@
         <!-- 検索・フィルター -->
         <section class="search-section">
             <div class="search-bar">
+                <i class="fas fa-search search-icon"></i>
                 <input
                     type="text"
                     id="searchInput"
                     placeholder="曲名、アーティスト、動画IDで検索..."
                     autocomplete="off"
                 >
+                <button class="search-clear" id="searchClear" style="display: none;" aria-label="検索をクリア">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <div class="filter-controls">
-                <select id="genreFilter">
-                    <option value="">すべてのジャンル</option>
-                    <option value="Vocaloid">Vocaloid</option>
-                    <option value="J-POP">J-POP</option>
-                    <option value="アニメ">アニメ</option>
-                    <option value="その他">その他</option>
-                </select>
-                <select id="sortBy">
-                    <option value="date-desc">配信日（新しい順）</option>
-                    <option value="date-asc">配信日（古い順）</option>
-                    <option value="song-asc">曲名（昇順）</option>
-                    <option value="artist-asc">アーティスト（昇順）</option>
-                </select>
+                <div class="filter-group">
+                    <label for="genreFilter"><i class="fas fa-tags"></i> ジャンル</label>
+                    <select id="genreFilter">
+                        <option value="">すべてのジャンル</option>
+                        <option value="Vocaloid">🎤 Vocaloid</option>
+                        <option value="J-POP">🎵 J-POP</option>
+                        <option value="アニメ">🎬 アニメ</option>
+                        <option value="その他">📀 その他</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="sortBy"><i class="fas fa-sort"></i> 並び替え</label>
+                    <select id="sortBy">
+                        <option value="date-desc">配信日（新しい順）</option>
+                        <option value="date-asc">配信日（古い順）</option>
+                        <option value="song-asc">曲名（昇順）</option>
+                        <option value="artist-asc">アーティスト（昇順）</option>
+                    </select>
+                </div>
             </div>
         </section>
 
         <!-- 統計情報 -->
         <section class="stats-section">
             <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="totalSongs">-</div>
-                    <div class="stat-label">総楽曲数</div>
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon"><i class="fas fa-music"></i></div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="totalSongs">-</div>
+                        <div class="stat-label">総楽曲数</div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="totalVideos">-</div>
-                    <div class="stat-label">配信数</div>
+                <div class="stat-card stat-card-success">
+                    <div class="stat-icon"><i class="fas fa-video"></i></div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="totalVideos">-</div>
+                        <div class="stat-label">配信数</div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="filteredCount">-</div>
-                    <div class="stat-label">表示中</div>
+                <div class="stat-card stat-card-info">
+                    <div class="stat-icon"><i class="fas fa-eye"></i></div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="filteredCount">-</div>
+                        <div class="stat-label">表示中</div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -93,21 +136,34 @@
                 </table>
             </div>
             <div class="loading" id="loading">
-                <div class="spinner"></div>
+                <div class="spinner-wrapper">
+                    <div class="spinner"></div>
+                </div>
                 <p>データを読み込み中...</p>
             </div>
             <div class="no-results" id="noResults" style="display: none;">
+                <div class="no-results-icon">
+                    <i class="fas fa-search"></i>
+                </div>
                 <p>検索条件に一致する楽曲が見つかりませんでした</p>
+                <button class="btn-secondary" id="resetFiltersBtn">
+                    <i class="fas fa-redo"></i> フィルターをリセット
+                </button>
             </div>
         </section>
     </main>
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 歌枠タイムスタンプ一覧 | Data powered by YouTube Data API v3</p>
-            <p class="last-update">最終更新: <span id="lastUpdate">-</span></p>
+            <div class="footer-content">
+                <p><i class="fas fa-heart"></i> &copy; 2025 タイムスタンプ一覧 | Data powered by YouTube Data API v3</p>
+                <p class="last-update"><i class="fas fa-clock"></i> 最終更新: <span id="lastUpdate">-</span></p>
+            </div>
         </div>
     </footer>
+
+    <!-- Toast通知 -->
+    <div class="toast" id="toast"></div>
 
     <script src="js/app.js"></script>
 </body>

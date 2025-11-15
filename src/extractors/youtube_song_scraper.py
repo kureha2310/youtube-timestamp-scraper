@@ -499,15 +499,17 @@ def get_comments(video_id: str) -> list[CommentInfo]:
 
     return comment_list
 
-def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_timestamps_complete.csv"):
+def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_timestamps_complete.csv", filter_singing_only: bool = False):
     """
     指定されたチャンネルIDリストをスクレイプする
 
     Args:
         channel_ids: スクレイプするチャンネルIDのリスト
         output_file: 出力CSVファイル名（デフォルトはoutput/csv/に保存）
+        filter_singing_only: Trueの場合は歌枠のみ、Falseの場合はすべての動画を対象
     """
-    print("YouTube歌動画タイムスタンプ抽出ツール")
+    mode_text = "【歌枠モード】" if filter_singing_only else "【総合モード】"
+    print(f"YouTubeタイムスタンプ抽出ツール {mode_text}")
     print("=" * 60)
     print(f"対象チャンネル数: {len(channel_ids)}")
     print()
@@ -527,21 +529,27 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
     for upid in uploads_ids:
         video_info_list += get_video_info_in_playlist(upid)
 
-    # 2. 歌動画フィルタリング（コメント取得前に一次フィルタリング）
-    # 一次フィルタリングは緩くして、コメント分析でより正確に判定する
-    filtered_video_list = []
-    for vi in video_info_list:
-        # 歌枠判定 or 概要欄にタイムスタンプが1つ以上ある場合は通す
-        has_timestamp_in_desc = len(re.findall(r'\d{1,2}:\d{2}', vi.description)) >= 1
-        # 初配信など特別な動画も通す（コメントにタイムスタンプがある可能性）
-        is_debut_or_special = bool(re.search(r'初配信|debut|初.*配信', vi.title, re.IGNORECASE))
-
-        if is_singing_stream(vi.title, vi.description) or has_timestamp_in_desc or is_debut_or_special:
+    # 2. フィルタリング
+    if filter_singing_only:
+        # 歌枠フィルタリング（歌枠のみ）
+        filtered_video_list = []
+        for vi in video_info_list:
+            # 歌枠判定 or 概要欄にタイムスタンプが1つ以上ある場合は通す
+            has_timestamp_in_desc = len(re.findall(r'\d{1,2}:\d{2}', vi.description)) >= 1
+            # 初配信など特別な動画も通す（コメントにタイムスタンプがある可能性）
+            is_debut_or_special = bool(re.search(r'初配信|debut|初.*配信', vi.title, re.IGNORECASE))
+            
+            if is_singing_stream(vi.title, vi.description) or has_timestamp_in_desc or is_debut_or_special:
+                filtered_video_list.append(vi)
+        print(f"全動画数: {len(video_info_list)}, 歌枠動画数: {len(filtered_video_list)}")
+        print("\n=== 歌枠として検出された動画 ===")
+    else:
+        # すべての動画を対象
+        filtered_video_list = []
+        for vi in video_info_list:
             filtered_video_list.append(vi)
-
-    print(f"全動画数: {len(video_info_list)}, 歌枠動画数: {len(filtered_video_list)}")
-
-    print("\n=== 歌枠として検出された動画 ===")
+        print(f"全動画数: {len(video_info_list)}, 処理対象動画数: {len(filtered_video_list)}")
+        print("\n=== 処理対象の動画 ===")
     for i, vi in enumerate(filtered_video_list[:10]):
         try:
             print(f"{i+1}. {vi.title}")
@@ -561,14 +569,22 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
             print(f"{i+1}/{len(filtered_video_list)}: [title with emoji]")
         video_info.comments = get_comments(video_info.id)
 
-        comment_texts = [c.text_display for c in video_info.comments] if video_info.comments else []
-        if is_singing_stream(video_info.title, video_info.description, comment_texts):
-            secondary_filtered_list.append(video_info)
+        if filter_singing_only:
+            # 歌枠フィルタリング：コメント分析で再判定
+            comment_texts = [c.text_display for c in video_info.comments] if video_info.comments else []
+            if is_singing_stream(video_info.title, video_info.description, comment_texts):
+                secondary_filtered_list.append(video_info)
+            else:
+                print(f"  → コメント分析により除外")
         else:
-            print(f"  → コメント分析により除外")
+            # すべての動画を通す
+            secondary_filtered_list.append(video_info)
 
     filtered_video_list = secondary_filtered_list
-    print(f"\nコメント分析後の歌枠動画数: {len(filtered_video_list)}")
+    if filter_singing_only:
+        print(f"\nコメント分析後の歌枠動画数: {len(filtered_video_list)}")
+    else:
+        print(f"\n処理対象動画数: {len(filtered_video_list)}")
 
     # 4. タイムスタンプ抽出
     print("\nタイムスタンプを抽出中...")
@@ -735,21 +751,16 @@ def main():
     for upid in uploads_ids:
         video_info_list += get_video_info_in_playlist(upid)
 
-    # 2. 歌動画フィルタリング（コメント取得前に一次フィルタリング）
-    # 一次フィルタリングは緩くして、コメント分析でより正確に判定する
+    # 2. フィルタリング（すべての動画からタイムスタンプを抽出）
+    # 歌枠フィルタリングを無効化し、すべての動画を対象とする
     filtered_video_list = []
     for vi in video_info_list:
-        # 歌枠判定 or 概要欄にタイムスタンプが1つ以上ある場合は通す
-        has_timestamp_in_desc = len(re.findall(r'\d{1,2}:\d{2}', vi.description)) >= 1
-        # 初配信など特別な動画も通す（コメントにタイムスタンプがある可能性）
-        is_debut_or_special = bool(re.search(r'初配信|debut|初.*配信', vi.title, re.IGNORECASE))
+        # すべての動画を通す（タイムスタンプがあれば抽出）
+        filtered_video_list.append(vi)
 
-        if is_singing_stream(vi.title, vi.description) or has_timestamp_in_desc or is_debut_or_special:
-            filtered_video_list.append(vi)
+    print(f"全動画数: {len(video_info_list)}, 処理対象動画数: {len(filtered_video_list)}")
 
-    print(f"全動画数: {len(video_info_list)}, 歌枠動画数: {len(filtered_video_list)}")
-
-    print("\n=== 歌枠として検出された動画 ===")
+    print("\n=== 処理対象の動画 ===")
     for i, vi in enumerate(filtered_video_list[:10]):
         try:
             print(f"{i+1}. {vi.title}")
@@ -770,15 +781,22 @@ def main():
             print(f"{i+1}/{len(filtered_video_list)}: [title with emoji]")
         video_info.comments = get_comments(video_info.id)
 
-        # コメント情報を含めて再判定
-        comment_texts = [c.text_display for c in video_info.comments] if video_info.comments else []
-        if is_singing_stream(video_info.title, video_info.description, comment_texts):
-            secondary_filtered_list.append(video_info)
+        if filter_singing_only:
+            # 歌枠フィルタリング：コメント分析で再判定
+            comment_texts = [c.text_display for c in video_info.comments] if video_info.comments else []
+            if is_singing_stream(video_info.title, video_info.description, comment_texts):
+                secondary_filtered_list.append(video_info)
+            else:
+                print(f"  → コメント分析により除外")
         else:
-            print(f"  → コメント分析により除外")
+            # すべての動画を通す
+            secondary_filtered_list.append(video_info)
 
     filtered_video_list = secondary_filtered_list
-    print(f"\nコメント分析後の歌枠動画数: {len(filtered_video_list)}")
+    if filter_singing_only:
+        print(f"\nコメント分析後の歌枠動画数: {len(filtered_video_list)}")
+    else:
+        print(f"\n処理対象動画数: {len(filtered_video_list)}")
 
     # 4. タイムスタンプ抽出
     print("\nタイムスタンプを抽出中...")

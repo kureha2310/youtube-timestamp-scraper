@@ -76,7 +76,12 @@ class GenreClassifier:
         if self._check_category_match("J-POP", search_text):
             return "J-POP"
 
-        # デフォルトは「その他」
+        # アーティスト情報がある場合はJ-POP扱い
+        # （雑談タイムスタンプなどは artist が空やnanなので除外される）
+        if artist and artist.strip() and artist.lower() not in ['nan', '-', 'none', '']:
+            return "J-POP"
+
+        # デフォルトは「その他」（雑談タイムスタンプなど）
         return "その他"
 
     def _check_category_match(self, category: str, search_text: str) -> bool:

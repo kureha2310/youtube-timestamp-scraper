@@ -1,5 +1,5 @@
 {
-  "buildCommand": "echo 'Static site - no build needed'",
+  "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "docs",
   "cleanUrls": true,
   "trailingSlash": false

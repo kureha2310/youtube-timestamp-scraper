@@ -18,8 +18,8 @@ from utils.youtube_channel_info import get_multiple_channels_info
 load_dotenv()
 
 # 入力・出力パス
-CSV_INPUT_SINGING = 'output/csv/song_timestamps_complete.csv'  # 歌枠のみ（既存ファイル使用）
-CSV_INPUT_ALL = 'output/csv/song_timestamps_complete.csv'  # 総合（既存ファイル使用）
+CSV_INPUT_SINGING = 'output/csv/song_timestamps_singing_only.csv'  # 歌枠のみ
+CSV_INPUT_ALL = 'output/csv/song_timestamps_complete.csv'  # 総合（全データ）
 JSON_OUTPUT_SINGING = 'docs/data/timestamps_singing.json'
 JSON_OUTPUT_ALL = 'docs/data/timestamps_all.json'
 CHANNELS_OUTPUT = 'docs/data/channels.json'

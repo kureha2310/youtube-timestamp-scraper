@@ -1,0 +1,116 @@
+{
+  "singing_detection": {
+    "include_keywords": [
+      "歌",
+      "うた",
+      "歌枠",
+      "カラオケ",
+      "music",
+      "song",
+      "singing"
+    ],
+    "exclude_keywords": [
+      "ゲーム",
+      "雑談",
+      "料理",
+      "game",
+      "chat"
+    ],
+    "bonus_patterns": [
+      "[歌うたウタ]",
+      "[歌枠うたわく]"
+    ],
+    "minimum_score": 2,
+    "minimum_score_override": 4
+  },
+  "timestamp_extraction": {
+    "patterns": {
+      "plain_timestamp": "(\\d{1,2}:\\d{2}(?::\\d{2})?)\\s*[-–—:：・･]?\\s*(.+?)(?=\\n|\\d{1,2}:\\d{2}|$)",
+      "flexible_timestamp": "(\\d{1,2}:\\d{2}(?::\\d{2})?)\\s*[）)]\\s*(.+?)(?=\\n|$)",
+      "japanese_timestamp": "(\\d{1,2}:\\d{2}(?::\\d{2})?)\\s*[：・]\\s*(.+?)(?=\\n|$)"
+    }
+  },
+  "text_cleaning": {
+    "normalize_chars": {
+      "０": "0",
+      "１": "1",
+      "２": "2",
+      "３": "3",
+      "４": "4",
+      "５": "5",
+      "６": "6",
+      "７": "7",
+      "８": "8",
+      "９": "9",
+      "（": "(",
+      "）": ")",
+      "［": "[",
+      "］": "]"
+    },
+    "numbering_patterns": [
+      "^\\d+\\.\\s*",
+      "^\\d+\\)\\s*",
+      "^\\d+[-–—]\\s*",
+      "^第?\\d+[曲首]\\s*"
+    ]
+  },
+  "genres": {
+    "vocaloid": {
+      "artists": [
+        "初音ミク",
+        "鏡音リン",
+        "鏡音レン",
+        "巡音ルカ",
+        "MEIKO",
+        "KAITO",
+        "IA",
+        "GUMI"
+      ],
+      "producers": [
+        "ボカロP",
+        "DECO*27",
+        "ハチ",
+        "米津玄師"
+      ],
+      "keywords": [
+        "ボカロ",
+        "vocaloid",
+        "ミク",
+        "ボーカロイド"
+      ]
+    },
+    "anime": {
+      "keywords": [
+        "アニメ",
+        "anime",
+        "OP",
+        "ED",
+        "主題歌",
+        "挿入歌"
+      ],
+      "titles": [
+        "残酷な天使のテーゼ",
+        "God knows",
+        "only my railgun"
+      ]
+    },
+    "jpop": {
+      "artists": [
+        "YOASOBI",
+        "あいみょん",
+        "米津玄師",
+        "LiSA"
+      ],
+      "keywords": [
+        "jpop",
+        "j-pop",
+        "ポップス"
+      ]
+    }
+  },
+  "api": {
+    "max_results_per_request": 50,
+    "max_comments_per_video": 100,
+    "retry_delay": 1.0
+  }
+}

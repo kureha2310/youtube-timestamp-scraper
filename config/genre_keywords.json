@@ -1,0 +1,127 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-11-02",
+  "description": "ジャンル分類用のキーワードとアーティストマッピング（統合版）",
+
+  "categories": {
+    "Vocaloid": {
+      "vocaloid_characters": [
+        "初音ミク", "ミク", "鏡音リン", "鏡音レン", "巡音ルカ",
+        "MEIKO", "KAITO", "GUMI", "IA", "重音テト"
+      ],
+      "producers": [
+        "ジミーサムP", "wowaka", "ryo", "supercell", "みきとP",
+        "かいりきベア", "DECO*27", "Neru", "40mP", "40㍍P",
+        "バルーン", "n-buna", "ピノキオピー", "Chinozo", "Orangestar",
+        "じん", "すりぃ", "八王子P", "蝶々P", "kemu", "Kanaria",
+        "Omoi", "夏代孝明", "メル", "doriko", "ハチ", "EasyPop",
+        "Junky", "kemu voxx", "石風呂", "トーマ", "ぬゆり",
+        "れるりり", "femme fatale", "ナノウ", "nobodyknows",
+        "john", "Guiano", "Dixie Flatline", "日向電工",
+        "柊マグネタイト", "ika_mo", "syudou", "ツミキ"
+      ],
+      "keywords": [
+        "ボカロ", "vocaloid", "ボーカロイド", "feat. 初音ミク",
+        "feat. 鏡音リン", "feat. 鏡音レン", "feat. GUMI", "feat. IA"
+      ],
+      "songs": [
+        "みくみくにしてあげる", "トリノコシティ", "とても素敵な六月でした"
+      ]
+    },
+
+    "アニメ": {
+      "artists": [
+        "涼宮ハルヒ", "千石撫子", "MAHO堂", "どうぶつビスケッツ",
+        "放課後ティータイム", "いきものがかり", "高橋洋子", "さユり", "LiSA"
+      ],
+      "keywords": [
+        "OP", "ED", "TVアニメ", "アニメ", "主題歌", "挿入歌",
+        "anime", "アニソン", "anime song", "anisong"
+      ],
+      "songs": [
+        "God knows", "恋愛サーキュレーション", "シルエット", "ブルーバード",
+        "ハレ晴れユカイ", "君の知らない物語", "創世のアクエリオン",
+        "ようこそジャパリパークへ", "おジャ魔女カーニバル",
+        "シュガーソングとビターステップ", "夢をかなえてドラえもん",
+        "ルージュの伝言", "にんげんっていいな", "君をのせて",
+        "タッチ", "secret base", "ハム太郎", "again", "風になる",
+        "Everlasting Guilty Crown", "名前のない怪物", "コネクト",
+        "残酷な天使のテーゼ", "only my railgun"
+      ]
+    },
+
+    "J-POP": {
+      "artists": [
+        "YOASOBI", "あいみょん", "米津玄師", "Aimer", "YUI",
+        "椎名林檎", "平井堅", "SPYAIR", "DAOKO×米津玄師"
+      ],
+      "keywords": [
+        "jpop", "j-pop", "ポップス", "J-POP"
+      ],
+      "labels": [
+        "ソニーミュージック", "avex", "ユニバーサル"
+      ]
+    },
+
+    "その他": {
+      "keywords": [],
+      "note": "上記カテゴリに当てはまらないアーティスト"
+    }
+  },
+
+  "artist_to_genre": {
+    "40mP": "Vocaloid",
+    "40mP feat. 初音ミク": "Vocaloid",
+    "Aimer": "J-POP",
+    "BUMP OF CHICKEN": "J-POP",
+    "DECO*27": "Vocaloid",
+    "DECO*27 feat. 初音ミク": "Vocaloid",
+    "Eve": "その他",
+    "Eve feat. 初音ミク": "Vocaloid",
+    "Kanaria": "Vocaloid",
+    "King Gnu": "J-POP",
+    "Mrs. GREEN APPLE": "J-POP",
+    "Official髭男dism": "J-POP",
+    "RADWIMPS": "J-POP",
+    "SPYAIR": "J-POP",
+    "YOASOBI": "J-POP",
+    "YUI": "J-POP",
+    "Vaundy": "J-POP",
+    "あいみょん": "J-POP",
+    "いきものがかり": "アニメ",
+    "かいりきベア feat. 初音ミク": "Vocaloid",
+    "さユり": "アニメ",
+    "じん": "Vocaloid",
+    "すりぃ": "Vocaloid",
+    "syudou": "Vocaloid",
+    "ちゃんみな": "J-POP",
+    "ツミキ": "Vocaloid",
+    "ツミキ -2": "Vocaloid",
+    "ハチ": "Vocaloid",
+    "バルーン": "Vocaloid",
+    "ヨルシカ": "J-POP",
+    "みきとP feat. 初音ミク": "Vocaloid",
+    "マカロニえんぴつ": "J-POP",
+    "川崎鷹也": "J-POP",
+    "平井堅": "J-POP",
+    "東京事変": "J-POP",
+    "椎名林檎": "J-POP",
+    "煮ル果実": "その他",
+    "獅子志司 feat. 初音ミク": "Vocaloid",
+    "米津玄師": "J-POP",
+    "高橋洋子": "アニメ",
+    "amazarashi": "J-POP",
+    "クリープハイプ": "J-POP",
+    "yama": "J-POP"
+  },
+
+  "classification_rules": {
+    "priority_order": [
+      "exact_artist_match",
+      "keyword_in_artist_or_song",
+      "character_name_match",
+      "default_to_other"
+    ],
+    "notes": "1. アーティスト名完全一致 → 2. キーワードマッチ → 3. その他"
+  }
+}

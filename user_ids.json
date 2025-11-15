@@ -1,8 +1,18 @@
 {
   "channels": [
     {
-      "name": "チャンネル1",
-      "channel_id": "UCxxxxxxxxxxxxxxxxxxxxxx",
+      "name": "南予りゅうか",
+      "channel_id": "UCCPc-kcJjcyVGB9N51qNsMg",
+      "enabled": true
+    },
+    {
+      "name": "九文字ポルポ",
+      "channel_id": "UCmM2LkAA9WYFZor1k_szNew",
+      "enabled": true
+    },
+    {
+      "name": "ふくもつく",
+      "channel_id": "UCHM_SLi7s0AJ8UBmm3pWN6Q",
       "enabled": true
     }
   ]

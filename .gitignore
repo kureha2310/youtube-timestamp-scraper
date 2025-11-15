@@ -1,17 +1,32 @@
+# 環境設定
 .env
 .venv
-__pycache__
-**hoge**
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# 出力ファイル
-song_timestamps_complete.csv
-song_timestamps_enhanced.csv
-comment_info.json
-comment_info_enhanced.json
-missing_timestamps.csv
+# 出力ディレクトリ
+output/
+
+# IDEファイル
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS固有
+.DS_Store
+Thumbs.db
 
 # テスト/デバッグファイル
 test_*.py
 check_*.py
 raw_*.txt
 comment_preview.txt
+**hoge**
+
+# バックアップファイル
+*.bak
+*_backup_*

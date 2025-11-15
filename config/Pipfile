@@ -8,6 +8,7 @@ google-api-python-client = "*"
 python-dotenv = "*"
 mecab-python3 = "*"
 pandas = "*"
+anthropic = "*"
 
 [dev-packages]
 

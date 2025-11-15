@@ -9,7 +9,9 @@
       "Bash(move \"README_システム解説.md\" docs )",
       "Bash(move \"README_初心者向け解説.md\" docs )",
       "Bash(move \"README_仕組み解説.md\" docs )",
-      "Bash(move:*)"
+      "Bash(move:*)",
+      "Bash(timeout 60 sleep:*)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []

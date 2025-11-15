@@ -15,14 +15,18 @@ from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from dotenv import load_dotenv
 
-from infoclass import VideoInfo, CommentInfo, TimeStamp
-from utils import aligned_json_dump
-from enhanced_extractor import (
-    Config, EnhancedTimestampExtractor, 
-    EnhancedGenreClassifier, EnhancedSongParser, 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from utils.infoclass import VideoInfo, CommentInfo, TimeStamp
+from utils.utils import aligned_json_dump
+from extractors.enhanced_extractor import (
+    Config, EnhancedTimestampExtractor,
+    EnhancedGenreClassifier, EnhancedSongParser,
     EnhancedTextCleaner
 )
-from transcript_topic_analyzer import TranscriptTopicAnalyzer
+from analyzers.transcript_topic_analyzer import TranscriptTopicAnalyzer
 
 class SingleVideoExtractor:
     def __init__(self):

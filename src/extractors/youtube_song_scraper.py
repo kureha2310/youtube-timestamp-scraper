@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from utils.infoclass import VideoInfo, CommentInfo, TimeStamp
 from utils.utils import aligned_json_dump
+from utils.genre_classifier import GenreClassifier
 
 load_dotenv()
 API_KEY = os.getenv('API_KEY')
@@ -48,30 +49,8 @@ except FileNotFoundError:
 
 class EnhancedAnalyzer:
     def __init__(self):
-        # ジャンル判定用キーワード
-        self.vocaloid_keywords = [
-            "初音ミク","鏡音リン","鏡音レン","巡音ルカ","MEIKO","KAITO",
-            "GUMI","IA","重音テト","ジミーサムP","wowaka","ryo","supercell",
-            "みきとP","かいりきベア","DECO*27","Neru","40mP","40㍍P","バルーン","n-buna",
-            "ピノキオピー","Chinozo","Orangestar","じん","すりぃ","八王子P","蝶々P",
-            "kemu","Kanaria","Omoi","夏代孝明","メル","doriko","ハチ","EasyPop",
-            "Junky","kemu voxx","石風呂","トーマ","ぬゆり","れるりり","femme fatale",
-            "ナノウ","nobodyknows","john","Guiano","Dixie Flatline","日向電工","柊マグネタイト",
-            "ika_mo","みくみくにしてあげる","トリノコシティ","とても素敵な六月でした"
-        ]
-        self.anime_keywords = [
-            "涼宮ハルヒ","千石撫子","MAHO堂","どうぶつビスケッツ",
-            "放課後ティータイム"
-        ]
-        self.anime_titles = [
-            "God knows","恋愛サーキュレーション","シルエット","ブルーバード",
-            "ハレ晴れユカイ","君の知らない物語","創世のアクエリオン",
-            "ようこそジャパリパークへ","おジャ魔女カーニバル",
-            "シュガーソングとビターステップ","夢をかなえてドラえもん",
-            "ルージュの伝言","にんげんっていいな","君をのせて",
-            "タッチ","secret base","ハム太郎",
-            "again","風になる","Everlasting Guilty Crown","名前のない怪物","コネクト"
-        ]
+        # ジャンル分類器を初期化（JSON統合版）
+        self.genre_classifier = GenreClassifier()
 
     def to_hiragana(self, text: str) -> str:
         """テキストをひらがなに変換"""
@@ -118,21 +97,23 @@ class EnhancedAnalyzer:
         return result
 
     def detect_genre(self, title: str, artist: str) -> str:
-        """ジャンルを自動判定"""
-        text = f"{title} {artist}"
-        if any(k.lower() in text.lower() for k in self.vocaloid_keywords):
-            return "Vocaloid"
-        if any(k.lower() in text.lower() for k in self.anime_keywords):
-            return "アニメ"
-        if any(k.lower() in title.lower() for k in self.anime_titles):
-            return "アニメ"
-        return "その他"
+        """ジャンルを自動判定（JSON統合版）"""
+        return self.genre_classifier.classify(artist, title)
 
-    def calculate_confidence_score(self, video_info: VideoInfo) -> float:
-        """歌動画の確度スコアを計算（既存のロジックを活用）"""
+    def calculate_confidence_score(self, video_info: VideoInfo, extracted_timestamps: list = None) -> float:
+        """
+        歌動画の確度スコアを計算（改善版）
+
+        Args:
+            video_info: 動画情報
+            extracted_timestamps: 抽出されたタイムスタンプのリスト（省略可）
+
+        Returns:
+            0.0-1.0の確度スコア
+        """
         title = video_info.title
         description = video_info.description
-        
+
         # 既存のis_singing_stream関数と同じロジック
         combined_text = f"{title} {description}".lower()
         singing_keywords = [
@@ -154,30 +135,91 @@ class EnhancedAnalyzer:
             "お絵描き", "絵", "drawing", "art", "イラスト",
             "工作", "craft", "作業", "work", "study", "勉強"
         ]
-        
+
         singing_score = 0
         for keyword in singing_keywords:
             if keyword in combined_text:
                 singing_score += 1
-        
+
         exclude_score = 0
         for keyword in exclude_keywords:
             if keyword in combined_text:
                 exclude_score += 1
-        
+
+        # タイトルの重要なパターン（重み増加）
         if re.search(r'[歌うたウタ]', title):
-            singing_score += 3
+            singing_score += 5  # 3→5に増加（最も信頼できるシグナル）
         if re.search(r'[♪♫♬🎵🎶🎤🎼]', combined_text):
             singing_score += 2
-        
+
         timestamp_count = len(re.findall(r'\d{1,2}:\d{2}', description))
         if timestamp_count >= 3:
             singing_score += 2
-        
-        # 正規化してスコアを0-1の範囲に
-        total_possible = len(singing_keywords) + 5 + 2  # キーワード数 + ボーナススコア
-        raw_score = max(0, singing_score - exclude_score)
-        return min(1.0, raw_score / 10.0)  # 10点満点で正規化
+
+        # コメント分析による追加スコア
+        if hasattr(video_info, 'comments') and video_info.comments:
+            comment_timestamp_count = 0
+            song_format_count = 0
+
+            for comment in video_info.comments:
+                comment_text = comment.text_display if hasattr(comment, 'text_display') else str(comment)
+                comment_timestamps = len(re.findall(r'\d{1,2}:\d{2}', comment_text))
+                if comment_timestamps >= 3:
+                    comment_timestamp_count += 1
+
+                # タイムスタンプ + 「曲名 / アーティスト」形式を検出
+                # HTMLタグも考慮（YouTubeコメントは<a>タグを含む）
+                if re.search(r'\d{1,2}:\d{2}(?::\d{2})?[^/\n]*/.+', comment_text):
+                    song_format_count += 1
+
+            # コメントに多数のタイムスタンプがある場合、歌配信の可能性が高い
+            if comment_timestamp_count >= 2:
+                singing_score += 4
+            elif comment_timestamp_count >= 1:
+                singing_score += 2
+
+            # 「曲名 / アーティスト」形式のタイムスタンプが複数ある場合、スコア追加
+            if song_format_count >= 3:
+                singing_score += 6
+            elif song_format_count >= 2:
+                singing_score += 4
+            elif song_format_count >= 1:
+                singing_score += 2
+
+        # ★新機能: タイムスタンプの質を評価（最も信頼できる指標）
+        timestamp_quality_score = 0
+        if extracted_timestamps:
+            # アーティスト名がある割合
+            artist_count = sum(1 for ts in extracted_timestamps if '/' in ts.text)
+            artist_ratio = artist_count / max(1, len(extracted_timestamps))
+
+            if artist_ratio > 0.8:
+                timestamp_quality_score += 10  # 80%以上にアーティスト名 = 確実に歌枠
+            elif artist_ratio > 0.5:
+                timestamp_quality_score += 6
+            elif artist_ratio > 0.2:
+                timestamp_quality_score += 3
+
+            # タイムスタンプの数（多いほど信頼できる）
+            ts_count = len(extracted_timestamps)
+            if ts_count >= 20:
+                timestamp_quality_score += 4
+            elif ts_count >= 10:
+                timestamp_quality_score += 3
+            elif ts_count >= 5:
+                timestamp_quality_score += 2
+            elif ts_count >= 3:
+                timestamp_quality_score += 1
+
+        # 総合スコア計算
+        raw_score = max(0, singing_score + timestamp_quality_score - exclude_score)
+
+        # 動的な正規化（最大スコアを推定）
+        # 基本スコア最大: 20点 + タイムスタンプ質: 14点 + コメント: 10点 = 44点
+        max_possible_score = 44
+        normalized_score = min(1.0, raw_score / max_possible_score)
+
+        return normalized_score
 
     def clean_title(self, text: str) -> str:
         """先頭ナンバリングを除去"""
@@ -245,6 +287,19 @@ class EnhancedAnalyzer:
             r'告知',
             r'^🦉',  # 絵文字で始まる
             r'見えて実は',  # 「単純なように見えて実は...」みたいなの
+            # 初配信などのタイムスタンプ（歌ではない）
+            r'初配信',
+            r'初.*配信',  # 「初歌配信」なども除外
+            r'第一声',
+            r'自己紹介',
+            r'公開',
+            r'について',
+            r'目標',
+            r'今後',
+            r'作品',
+            r'画伯',
+            r'語る',
+            r'得意',
         ]
 
         title_lower = title.lower()
@@ -327,15 +382,31 @@ def is_singing_stream(title: str, description: str, comments: Optional[List[str]
     # コメント分析による追加スコア
     if comments:
         comment_timestamp_count = 0
+        song_format_count = 0  # 「曲名 / アーティスト」形式のカウント
+
         for comment in comments:
             comment_timestamps = len(re.findall(r'\d{1,2}:\d{2}', comment))
             if comment_timestamps >= 3:  # 1コメントに3つ以上のタイムスタンプ
                 comment_timestamp_count += 1
 
+            # タイムスタンプ + 「曲名 / アーティスト」形式を検出
+            # 例: "43:00 蝶々結び / Aimer" や "1:23:45 曲名/歌手"
+            # HTMLタグも考慮（YouTubeコメントは<a>タグを含む）
+            if re.search(r'\d{1,2}:\d{2}(?::\d{2})?[^/\n]*/.+', comment):
+                song_format_count += 1
+
         # コメントに多数のタイムスタンプがある場合、歌配信の可能性が高い
         if comment_timestamp_count >= 2:
             singing_score += 4
         elif comment_timestamp_count >= 1:
+            singing_score += 2
+
+        # 「曲名 / アーティスト」形式のタイムスタンプが複数ある場合、歌配信の可能性が非常に高い
+        if song_format_count >= 3:
+            singing_score += 6  # 強い信号
+        elif song_format_count >= 2:
+            singing_score += 4
+        elif song_format_count >= 1:
             singing_score += 2
 
     if singing_score >= 2 and exclude_score <= singing_score:
@@ -457,9 +528,15 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         video_info_list += get_video_info_in_playlist(upid)
 
     # 2. 歌動画フィルタリング（コメント取得前に一次フィルタリング）
+    # 一次フィルタリングは緩くして、コメント分析でより正確に判定する
     filtered_video_list = []
     for vi in video_info_list:
-        if is_singing_stream(vi.title, vi.description):
+        # 歌枠判定 or 概要欄にタイムスタンプが1つ以上ある場合は通す
+        has_timestamp_in_desc = len(re.findall(r'\d{1,2}:\d{2}', vi.description)) >= 1
+        # 初配信など特別な動画も通す（コメントにタイムスタンプがある可能性）
+        is_debut_or_special = bool(re.search(r'初配信|debut|初.*配信', vi.title, re.IGNORECASE))
+
+        if is_singing_stream(vi.title, vi.description) or has_timestamp_in_desc or is_debut_or_special:
             filtered_video_list.append(vi)
 
     print(f"全動画数: {len(video_info_list)}, 歌枠動画数: {len(filtered_video_list)}")
@@ -496,9 +573,12 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
     # 4. タイムスタンプ抽出
     print("\nタイムスタンプを抽出中...")
     all_timestamps = []
+    video_timestamps_map = {}  # 動画IDごとのタイムスタンプを保持
+
     for v in filtered_video_list:
         ts_list = TimeStamp.from_videoinfo(v)
         all_timestamps.extend(ts_list)
+        video_timestamps_map[v.id] = ts_list  # 動画ごとに保存
 
     print(f"抽出されたタイムスタンプ数: {len(all_timestamps)}")
 
@@ -518,7 +598,9 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         confidence = 0.0
         for vi in filtered_video_list:
             if vi.id == video_id:
-                confidence = analyzer.calculate_confidence_score(vi)
+                # 改善版：動画のタイムスタンプを渡す
+                ts_for_video = video_timestamps_map.get(video_id, [])
+                confidence = analyzer.calculate_confidence_score(vi, ts_for_video)
                 break
 
         song_title, artist = analyzer.parse_song_title_artist(raw_title)
@@ -601,24 +683,37 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         writer.writerows(rows)
 
     print(f"\n完了！CSVを出力しました: {output_file}")
-    print(f"統計:")
+    print(f"\n統計:")
     print(f"   - 処理した動画数: {len(filtered_video_list)}")
     print(f"   - 抽出したタイムスタンプ数: {len(all_timestamps)}")
     print(f"   - 最終出力行数: {len(rows)}")
 
     if rows:
+        # 確度スコア統計
         scores = [float(row[8]) for row in rows]
         high_conf = len([s for s in scores if s > 0.7])
         med_conf = len([s for s in scores if 0.4 <= s <= 0.7])
         low_conf = len([s for s in scores if s < 0.4])
 
-        print(f"   - 高確度 (>0.7): {high_conf}件")
-        print(f"   - 中確度 (0.4-0.7): {med_conf}件")
-        print(f"   - 低確度 (<0.4): {low_conf}件")
+        print(f"\n   確度スコア分布:")
+        print(f"   - 高確度 (>0.7): {high_conf}件 ({high_conf/len(rows)*100:.1f}%)")
+        print(f"   - 中確度 (0.4-0.7): {med_conf}件 ({med_conf/len(rows)*100:.1f}%)")
+        print(f"   - 低確度 (<0.4): {low_conf}件 ({low_conf/len(rows)*100:.1f}%)")
+        print(f"   - 平均確度: {sum(scores)/len(scores):.2f}")
+
+        # ジャンル別統計
+        genre_stats = {}
+        for row in rows:
+            genre = row[4]  # ジャンル列
+            genre_stats[genre] = genre_stats.get(genre, 0) + 1
+
+        print(f"\n   ジャンル別統計:")
+        for genre, count in sorted(genre_stats.items(), key=lambda x: x[1], reverse=True):
+            print(f"   - {genre}: {count}曲 ({count/len(rows)*100:.1f}%)")
 
     vi_dict = [asdict(vi) for vi in filtered_video_list]
     aligned_json_dump(vi_dict, "output/json/comment_info.json")
-    print(f"バックアップJSONも作成: output/json/comment_info.json")
+    print(f"\nバックアップJSONも作成: output/json/comment_info.json")
 
 
 def main():
@@ -641,9 +736,15 @@ def main():
         video_info_list += get_video_info_in_playlist(upid)
 
     # 2. 歌動画フィルタリング（コメント取得前に一次フィルタリング）
+    # 一次フィルタリングは緩くして、コメント分析でより正確に判定する
     filtered_video_list = []
     for vi in video_info_list:
-        if is_singing_stream(vi.title, vi.description):
+        # 歌枠判定 or 概要欄にタイムスタンプが1つ以上ある場合は通す
+        has_timestamp_in_desc = len(re.findall(r'\d{1,2}:\d{2}', vi.description)) >= 1
+        # 初配信など特別な動画も通す（コメントにタイムスタンプがある可能性）
+        is_debut_or_special = bool(re.search(r'初配信|debut|初.*配信', vi.title, re.IGNORECASE))
+
+        if is_singing_stream(vi.title, vi.description) or has_timestamp_in_desc or is_debut_or_special:
             filtered_video_list.append(vi)
 
     print(f"全動画数: {len(video_info_list)}, 歌枠動画数: {len(filtered_video_list)}")
@@ -682,10 +783,13 @@ def main():
     # 4. タイムスタンプ抽出
     print("\nタイムスタンプを抽出中...")
     all_timestamps = []
+    video_timestamps_map = {}  # 動画IDごとのタイムスタンプを保持
+
     for v in filtered_video_list:
         ts_list = TimeStamp.from_videoinfo(v)
         all_timestamps.extend(ts_list)
-    
+        video_timestamps_map[v.id] = ts_list  # 動画ごとに保存
+
     print(f"抽出されたタイムスタンプ数: {len(all_timestamps)}")
 
     # 5. CSV形式に変換（重複除去強化版）
@@ -706,7 +810,9 @@ def main():
         confidence = 0.0
         for vi in filtered_video_list:
             if vi.id == video_id:
-                confidence = analyzer.calculate_confidence_score(vi)
+                # 改善版：動画のタイムスタンプを渡す
+                ts_for_video = video_timestamps_map.get(video_id, [])
+                confidence = analyzer.calculate_confidence_score(vi, ts_for_video)
                 break
 
         song_title, artist = analyzer.parse_song_title_artist(raw_title)
@@ -801,26 +907,38 @@ def main():
         writer.writerows(rows)
 
     print(f"\n完了！CSVを出力しました: {output_file}")
-    print(f"統計:")
+    print(f"\n統計:")
     print(f"   - 処理した動画数: {len(filtered_video_list)}")
     print(f"   - 抽出したタイムスタンプ数: {len(all_timestamps)}")
     print(f"   - 最終出力行数: {len(rows)}")
 
-    # 確度スコア統計
     if rows:
+        # 確度スコア統計
         scores = [float(row[8]) for row in rows]
         high_conf = len([s for s in scores if s > 0.7])
         med_conf = len([s for s in scores if 0.4 <= s <= 0.7])
         low_conf = len([s for s in scores if s < 0.4])
 
-        print(f"   - 高確度 (>0.7): {high_conf}件")
-        print(f"   - 中確度 (0.4-0.7): {med_conf}件")
-        print(f"   - 低確度 (<0.4): {low_conf}件")
+        print(f"\n   確度スコア分布:")
+        print(f"   - 高確度 (>0.7): {high_conf}件 ({high_conf/len(rows)*100:.1f}%)")
+        print(f"   - 中確度 (0.4-0.7): {med_conf}件 ({med_conf/len(rows)*100:.1f}%)")
+        print(f"   - 低確度 (<0.4): {low_conf}件 ({low_conf/len(rows)*100:.1f}%)")
+        print(f"   - 平均確度: {sum(scores)/len(scores):.2f}")
+
+        # ジャンル別統計
+        genre_stats = {}
+        for row in rows:
+            genre = row[4]  # ジャンル列
+            genre_stats[genre] = genre_stats.get(genre, 0) + 1
+
+        print(f"\n   ジャンル別統計:")
+        for genre, count in sorted(genre_stats.items(), key=lambda x: x[1], reverse=True):
+            print(f"   - {genre}: {count}曲 ({count/len(rows)*100:.1f}%)")
 
     # JSONファイルも保存（バックアップ用）
     vi_dict = [asdict(vi) for vi in filtered_video_list]
     aligned_json_dump(vi_dict, "output/json/comment_info.json")
-    print(f"バックアップJSONも作成: output/json/comment_info.json")
+    print(f"\nバックアップJSONも作成: output/json/comment_info.json")
 
 if __name__ == "__main__":
     main()

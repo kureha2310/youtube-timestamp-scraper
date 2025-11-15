@@ -6,7 +6,7 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: '../docs',
+    outDir: 'dist',
     emptyOutDir: true,
   },
   resolve: {
@@ -14,4 +14,5 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  publicDir: 'public',
 })

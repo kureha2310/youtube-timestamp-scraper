@@ -1,8 +1,8 @@
 {
   "channels": [
     {
-      "name": "南予りゅうか",
-      "channel_id": "UCCPc-kcJjcyVGB9N51qNsMg",
+      "name": "ふくもつく",
+      "channel_id": "UCHM_SLi7s0AJ8UBmm3pWN6Q",
       "enabled": true
     },
     {
@@ -11,8 +11,18 @@
       "enabled": true
     },
     {
-      "name": "ふくもつく",
-      "channel_id": "UCHM_SLi7s0AJ8UBmm3pWN6Q",
+      "name": "月儚リン",
+      "channel_id": "UCMf7-2iEzioOK6t_T7mVvDQ",
+      "enabled": true
+    },
+    {
+      "name": "琉華メイファン",
+      "channel_id": "UCiVwDkYw01KbZwZl5s7b9IQ",
+      "enabled": true
+    },
+    {
+      "name": "狛ノヰみつ",
+      "channel_id": "UCgaaW1hyIQQ6rQg0cfPASsA",
       "enabled": true
     }
   ]

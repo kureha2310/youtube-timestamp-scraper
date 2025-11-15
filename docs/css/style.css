@@ -1,0 +1,361 @@
+/* ===== リセット & ベース ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --color-primary: #4b9cfb;
+    --color-text: #333;
+    --color-text-light: #666;
+    --color-bg: #ffffff;
+    --color-bg-light: #f8f8f8;
+    --color-border: #f2f2f2;
+    --color-border-dark: #ddd;
+    --color-hover: #f5f5f5;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --transition: 0.3s cubic-bezier(0.4, 0.4, 0, 1);
+}
+
+body {
+    font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--color-text);
+    background: var(--color-bg-light);
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* ===== ヘッダー ===== */
+header {
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+}
+
+header h1 {
+    font-size: 2rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+header .subtitle {
+    color: var(--color-text-light);
+    font-size: 0.95rem;
+}
+
+/* ===== チャンネルフィルター ===== */
+.channel-filter {
+    background: var(--color-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.channel-filter h2 {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.channel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.channel-card {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition);
+    background: var(--color-bg);
+}
+
+.channel-card:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.channel-card.active {
+    border-color: var(--color-primary);
+    background: rgba(75, 156, 251, 0.05);
+}
+
+.channel-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-right: 0.75rem;
+    object-fit: cover;
+}
+
+.channel-info {
+    flex: 1;
+}
+
+.channel-name {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.channel-count {
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+}
+
+/* ===== 検索セクション ===== */
+.search-section {
+    background: var(--color-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.search-bar {
+    margin-bottom: 1rem;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border-dark);
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color var(--transition);
+}
+
+.search-bar input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.filter-controls {
+    display: flex;
+    gap: 1rem;
+}
+
+.filter-controls select {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border-dark);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: var(--color-bg);
+    cursor: pointer;
+    transition: border-color var(--transition);
+}
+
+.filter-controls select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+/* ===== 統計カード ===== */
+.stats-section {
+    margin-bottom: 1.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.stat-card {
+    background: var(--color-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+}
+
+/* ===== テーブル ===== */
+.table-section {
+    background: var(--color-bg);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    min-height: 400px;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead {
+    background: hsla(0, 0%, 96%, 0.5);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+    border-bottom: 1px solid var(--color-border);
+}
+
+td {
+    padding: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+tbody tr {
+    transition: background var(--transition);
+}
+
+tbody tr:hover {
+    background: var(--color-hover);
+}
+
+.genre-tag {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.genre-tag.vocaloid {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.genre-tag.jpop {
+    background: #fce4ec;
+    color: #c2185b;
+}
+
+.genre-tag.anime {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.genre-tag.other {
+    background: #f5f5f5;
+    color: #757575;
+}
+
+.video-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.8rem;
+    background: var(--color-primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    transition: opacity var(--transition);
+}
+
+.video-link:hover {
+    opacity: 0.8;
+}
+
+.video-link::before {
+    content: '▶';
+    margin-right: 0.4rem;
+}
+
+/* ===== ローディング ===== */
+.loading {
+    text-align: center;
+    padding: 3rem;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 1rem;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.no-results {
+    text-align: center;
+    padding: 3rem;
+    color: var(--color-text-light);
+}
+
+/* ===== フッター ===== */
+footer {
+    margin-top: 3rem;
+    padding: 2rem 0;
+    text-align: center;
+    color: var(--color-text-light);
+    font-size: 0.85rem;
+}
+
+.last-update {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+/* ===== レスポンシブ ===== */
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 1.5rem;
+    }
+
+    .channel-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-controls {
+        flex-direction: column;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    table {
+        font-size: 0.85rem;
+    }
+
+    th, td {
+        padding: 8px;
+    }
+}

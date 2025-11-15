@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: '../docs',
-    emptyOutDir: false, // docs/data を保持するため
+    emptyOutDir: true,
   },
   resolve: {
     alias: {

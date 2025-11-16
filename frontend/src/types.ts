@@ -24,5 +24,5 @@ export interface Channel {
 }
 
 export type Mode = 'singing' | 'all';
-export type Genre = '' | 'Vocaloid' | 'J-POP' | 'アニメ' | 'その他';
+export type Genre = '' | 'Vocaloid' | 'アニメ' | 'ゲーム音楽' | 'J-POP' | 'ロック' | 'オルタナティブ' | 'バラード' | 'R&B/ソウル' | 'エレクトロニック' | 'シティポップ' | 'フォーク' | 'パンク' | 'その他';
 export type SortBy = 'date-desc' | 'date-asc' | 'song-asc' | 'artist-asc';

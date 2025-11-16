@@ -1,0 +1,209 @@
+{
+  "version": "2.0",
+  "last_updated": "2025-11-16",
+  "description": "拡張ジャンル分類 - より細かい分類で精度向上",
+
+  "genres": {
+    "Vocaloid": {
+      "emoji": "🎤",
+      "color": "indigo",
+      "priority": 1
+    },
+    "アニメ": {
+      "emoji": "🎬",
+      "color": "purple",
+      "priority": 2
+    },
+    "ゲーム音楽": {
+      "emoji": "🎮",
+      "color": "green",
+      "priority": 3
+    },
+    "J-POP": {
+      "emoji": "🎵",
+      "color": "pink",
+      "priority": 4
+    },
+    "ロック": {
+      "emoji": "🎸",
+      "color": "red",
+      "priority": 5
+    },
+    "オルタナティブ": {
+      "emoji": "🎧",
+      "color": "orange",
+      "priority": 6
+    },
+    "バラード": {
+      "emoji": "🎹",
+      "color": "blue",
+      "priority": 7
+    },
+    "R&B/ソウル": {
+      "emoji": "🎺",
+      "color": "amber",
+      "priority": 8
+    },
+    "エレクトロニック": {
+      "emoji": "🎛️",
+      "color": "cyan",
+      "priority": 9
+    },
+    "シティポップ": {
+      "emoji": "🌆",
+      "color": "teal",
+      "priority": 10
+    },
+    "フォーク": {
+      "emoji": "🍃",
+      "color": "emerald",
+      "priority": 11
+    },
+    "パンク": {
+      "emoji": "⚡",
+      "color": "rose",
+      "priority": 12
+    },
+    "その他": {
+      "emoji": "📀",
+      "color": "slate",
+      "priority": 99
+    }
+  },
+
+  "artist_mappings": {
+    "Vocaloid": [
+      "40mP", "40mP feat. 初音ミク", "40㍍P",
+      "DECO*27", "DECO*27 feat. 初音ミク",
+      "Eve feat. 初音ミク",
+      "Kanaria",
+      "かいりきベア", "かいりきベア feat. 初音ミク",
+      "じん", "じん feat. IA",
+      "すりぃ",
+      "syudou",
+      "ツミキ", "ツミキ -2",
+      "ハチ",
+      "バルーン",
+      "みきとP", "みきとP feat. 初音ミク",
+      "獅子志司", "獅子志司 feat. 初音ミク",
+      "西沢さんP",
+      "黒うさP",
+      "電ポルP",
+      "じーざすP",
+      "てにをは",
+      "164",
+      "Giga",
+      "カンザキイオリ",
+      "梅とら",
+      "TOKOTOKO",
+      "ジミーサムP", "wowaka", "ryo", "supercell",
+      "n-buna", "ピノキオピー", "Chinozo", "Orangestar",
+      "八王子P", "蝶々P", "kemu", "Omoi", "夏代孝明",
+      "メル", "doriko", "EasyPop", "Junky", "石風呂",
+      "トーマ", "ぬゆり", "れるりり", "femme fatale",
+      "ナノウ", "nobodyknows", "john", "Guiano",
+      "Dixie Flatline", "日向電工", "柊マグネタイト", "ika_mo"
+    ],
+
+    "アニメ": [
+      "涼宮ハルヒ", "千石撫子", "MAHO堂", "どうぶつビスケッツ",
+      "放課後ティータイム", "いきものがかり", "高橋洋子",
+      "さユり", "LiSA", "Aimer", "EGOIST", "ClariS",
+      "TrySail", "Kalafina", "やなぎなぎ", "春奈るな",
+      "ZAQ", "鈴木このみ", "May'n", "水樹奈々", "田村ゆかり"
+    ],
+
+    "ゲーム音楽": [
+      "植松伸夫", "光田康典", "下村陽子", "崎元仁",
+      "すぎやまこういち", "近藤浩治"
+    ],
+
+    "J-POP": [
+      "YOASOBI", "あいみょん", "米津玄師", "YUI",
+      "Official髭男dism", "King Gnu", "Mrs. GREEN APPLE",
+      "Vaundy", "ヨルシカ", "RADWIMPS", "BUMP OF CHICKEN",
+      "マカロニえんぴつ", "川崎鷹也", "平井堅", "東京事変",
+      "椎名林檎", "amazarashi", "yama", "ちゃんみな",
+      "Ado", "藤井風", "優里", "back number", "スピッツ",
+      "Mr.Children", "サザンオールスターズ", "宇多田ヒカル"
+    ],
+
+    "ロック": [
+      "TK from 凛として時雨", "THE ORAL CIGARETTES", "DOES",
+      "SPYAIR", "ONE OK ROCK", "MY FIRST STORY",
+      "UVERworld", "MAN WITH A MISSION", "10-FEET",
+      "[Alexandros]", "BLUE ENCOUNT", "Fear, and Loathing in Las Vegas",
+      "SHISHAMO"
+    ],
+
+    "オルタナティブ": [
+      "Eve", "煮ル果実", "Indigo la End", "クリープハイプ",
+      "ゲスの極み乙女。", "RADWIMPS", "androp",
+      "ASIAN KUNG-FU GENERATION", "くるり", "神聖かまってちゃん"
+    ],
+
+    "バラード": [
+      "家入レオ", "ユンナ", "秦基博", "AI", "西野カナ",
+      "絢香", "miwa", "aiko", "Superfly", "いきものがかり",
+      "コブクロ", "福山雅治", "槇原敬之"
+    ],
+
+    "R&B/ソウル": [
+      "平井大", "KREVA", "EXILE", "三浦大知", "Crystal Kay",
+      "MISIA", "久保田利伸", "Sowelu"
+    ],
+
+    "エレクトロニック": [
+      "Chilldspot", "R Sound Design", "中田ヤスタカ",
+      "tofubeats", "TENDRE", "OMSB", "Seiho", "☆Taku Takahashi",
+      "Especia", "きゃりーぱみゅぱみゅ", "Perfume"
+    ],
+
+    "シティポップ": [
+      "和ぬか", "Conton Candy", "竹内まりや", "山下達郎",
+      "大滝詠一", "角松敏生", "杏里", "吉田美奈子",
+      "Lamp", "YONA YONA WEEKENDERS", "never young beach"
+    ],
+
+    "フォーク": [
+      "秦基博", "斉藤和義", "森山直太朗", "MONGOL800",
+      "BEGIN", "夏川りみ", "井上陽水", "さだまさし",
+      "長渕剛", "吉田拓郎", "泉谷しげる"
+    ],
+
+    "パンク": [
+      "MONGOL800", "BRAHMAN", "Hi-STANDARD", "dustbox",
+      "KEMURI", "THE BLUE HEARTS", "THE HIGH-LOWS",
+      "GOING STEADY", "横道坊主"
+    ]
+  },
+
+  "keyword_patterns": {
+    "Vocaloid": [
+      "feat. 初音ミク", "feat. 鏡音リン", "feat. 鏡音レン",
+      "feat. GUMI", "feat. IA", "feat. 巡音ルカ",
+      "ボカロ", "vocaloid", "ボーカロイド"
+    ],
+    "アニメ": [
+      "OP", "ED", "TVアニメ", "アニメ", "主題歌", "挿入歌",
+      "anime", "アニソン", "anime song", "劇場版", "OVA"
+    ],
+    "ゲーム音楽": [
+      "ゲーム", "game", "BGM", "サウンドトラック", "OST",
+      "テーマソング", "ゲーム音楽", "ゲームミュージック"
+    ]
+  },
+
+  "classification_priority": [
+    "exact_artist_match",
+    "keyword_match",
+    "genre_pattern_match",
+    "default_to_other"
+  ],
+
+  "notes": {
+    "usage": "このファイルは既存のgenre_keywords.jsonの拡張版です",
+    "accuracy": "より細かいジャンル分類により、「その他」カテゴリを削減",
+    "maintenance": "新しいアーティストは適切なカテゴリに追加してください"
+  }
+}

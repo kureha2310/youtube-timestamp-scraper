@@ -4,8 +4,17 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['Noto Sans JP', 'Inter', 'system-ui', 'sans-serif'],
+        mincho: ['Shippori Mincho', 'serif'],
+      },
+      transitionTimingFunction: {
+        'elegant': 'cubic-bezier(0.4, 0.4, 0, 1)',
+      },
+    },
   },
   plugins: [],
 }

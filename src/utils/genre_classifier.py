@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 class GenreClassifier:
     """ジャンル分類クラス"""
 
-    def __init__(self, config_path: str = "config/genre_keywords.json"):
+    def __init__(self, config_path: str = "config/genre_keywords_enhanced.json"):
         """
         初期化
 
@@ -19,8 +19,25 @@ class GenreClassifier:
         """
         self.config_path = config_path
         self.config = self._load_config()
-        self.categories = self.config.get("categories", {})
-        self.artist_mapping = self.config.get("artist_to_genre", {})
+
+        # 新しいフォーマット対応
+        if "artist_mappings" in self.config:
+            # 拡張版フォーマット (genre_keywords_enhanced.json)
+            self.artist_mappings_by_genre = self.config.get("artist_mappings", {})
+            self.keyword_patterns = self.config.get("keyword_patterns", {})
+            self.genres = self.config.get("genres", {})
+            # 逆引き用（アーティスト → ジャンル）
+            self.artist_to_genre = self._build_artist_to_genre_map()
+        else:
+            # 旧フォーマット (genre_keywords.json)
+            self.categories = self.config.get("categories", {})
+            self.artist_to_genre = self.config.get("artist_to_genre", {})
+            self.artist_mappings_by_genre = {}
+            self.keyword_patterns = {}
+            self.genres = {}
+
+        # 後方互換性のため
+        self.artist_mapping = self.artist_to_genre
 
     def _load_config(self) -> Dict:
         """設定ファイルを読み込む"""
@@ -46,6 +63,14 @@ class GenreClassifier:
             "artist_to_genre": {}
         }
 
+    def _build_artist_to_genre_map(self) -> Dict[str, str]:
+        """アーティスト名からジャンルへのマッピングを構築"""
+        artist_to_genre = {}
+        for genre, artists in self.artist_mappings_by_genre.items():
+            for artist in artists:
+                artist_to_genre[artist] = genre
+        return artist_to_genre
+
     def classify(self, artist: str, song_title: str = "") -> str:
         """
         アーティスト名と曲名からジャンルを判定
@@ -55,8 +80,51 @@ class GenreClassifier:
             song_title: 曲名（省略可）
 
         Returns:
-            ジャンル文字列（Vocaloid/アニメ/J-POP/その他）
+            ジャンル文字列
         """
+        # 拡張版フォーマット使用時
+        if self.artist_mappings_by_genre:
+            return self._classify_enhanced(artist, song_title)
+
+        # 旧フォーマット使用時（後方互換性）
+        return self._classify_legacy(artist, song_title)
+
+    def _classify_enhanced(self, artist: str, song_title: str = "") -> str:
+        """拡張版フォーマットでの分類"""
+        # 優先度1: アーティスト名完全一致
+        if artist in self.artist_to_genre:
+            return self.artist_to_genre[artist]
+
+        # 優先度2: キーワードパターンマッチ
+        search_text = f"{artist} {song_title}".lower()
+
+        # ジャンルを優先度順にチェック
+        genre_priority = sorted(
+            self.genres.items(),
+            key=lambda x: x[1].get('priority', 99)
+        )
+
+        for genre_name, _ in genre_priority:
+            if genre_name in self.keyword_patterns:
+                keywords = self.keyword_patterns[genre_name]
+                for keyword in keywords:
+                    if keyword.lower() in search_text:
+                        return genre_name
+
+        # 優先度3: 部分一致チェック
+        for genre, artists in self.artist_mappings_by_genre.items():
+            for mapped_artist in artists:
+                if mapped_artist in artist or artist in mapped_artist:
+                    return genre
+
+        # アーティスト情報がある場合は「その他」
+        if artist and artist.strip() and artist.lower() not in ['nan', '-', 'none', '']:
+            return "その他"
+
+        return "その他"
+
+    def _classify_legacy(self, artist: str, song_title: str = "") -> str:
+        """旧フォーマットでの分類（後方互換性）"""
         # 優先度1: アーティスト名の完全一致
         if artist in self.artist_mapping:
             return self.artist_mapping[artist]
@@ -77,11 +145,10 @@ class GenreClassifier:
             return "J-POP"
 
         # アーティスト情報がある場合はJ-POP扱い
-        # （雑談タイムスタンプなどは artist が空やnanなので除外される）
         if artist and artist.strip() and artist.lower() not in ['nan', '-', 'none', '']:
             return "J-POP"
 
-        # デフォルトは「その他」（雑談タイムスタンプなど）
+        # デフォルトは「その他」
         return "その他"
 
     def _check_category_match(self, category: str, search_text: str) -> bool:

@@ -6,6 +6,9 @@ __pycache__/
 *.pyo
 *.pyd
 
+# Spotify API
+config/spotify_cache.json
+
 # 出力ディレクトリ
 output/
 

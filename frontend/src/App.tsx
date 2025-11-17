@@ -340,8 +340,8 @@ function App() {
                 <tr>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">No</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">曲名</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">アーティスト</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">ジャンル</th>
+                  {mode === 'singing' && <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">アーティスト</th>}
+                  {mode === 'singing' && <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">ジャンル</th>}
                   <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">TS</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">配信日</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">動画</th>
@@ -350,7 +350,7 @@ function App() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center">
+                    <td colSpan={mode === 'singing' ? 7 : 5} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <i className="fas fa-search text-4xl text-slate-300 dark:text-slate-600"></i>
                         <div>
@@ -377,14 +377,14 @@ function App() {
                       <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400">{index + 1}</td>
                       <td className="px-3 py-2.5">
                         <div className="font-semibold text-slate-900 dark:text-white">{item.曲 || '-'}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 md:hidden mt-0.5">{item['歌手-ユニット'] || '-'}</div>
+                        {mode === 'singing' && <div className="text-xs text-slate-500 dark:text-slate-400 md:hidden mt-0.5">{item['歌手-ユニット'] || '-'}</div>}
                       </td>
-                      <td className="px-3 py-2.5 text-slate-700 dark:text-slate-300 hidden md:table-cell">{item['歌手-ユニット'] || '-'}</td>
-                      <td className="px-3 py-2.5">
+                      {mode === 'singing' && <td className="px-3 py-2.5 text-slate-700 dark:text-slate-300 hidden md:table-cell">{item['歌手-ユニット'] || '-'}</td>}
+                      {mode === 'singing' && <td className="px-3 py-2.5">
                         <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${getGenreClass(item.ジャンル)}`}>
                           {item.ジャンル || 'その他'}
                         </span>
-                      </td>
+                      </td>}
                       <td className="px-3 py-2.5 font-mono text-xs text-slate-700 dark:text-slate-300 hidden lg:table-cell">{item.タイムスタンプ || '-'}</td>
                       <td className="px-3 py-2.5 text-xs text-slate-600 dark:text-slate-400 hidden lg:table-cell">{item.配信日 || '-'}</td>
                       <td className="px-3 py-2.5">

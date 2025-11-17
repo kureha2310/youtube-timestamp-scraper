@@ -19,9 +19,9 @@ load_dotenv()
 
 # 入力・出力パス
 CSV_INPUT_SINGING = 'output/csv/song_timestamps_singing_only.csv'  # 歌枠のみ
-CSV_INPUT_ALL = 'output/csv/song_timestamps_complete.csv'  # 総合（全データ）
+CSV_INPUT_OTHER = 'output/csv/song_timestamps_other.csv'  # アーティストなし（雑談・企画など）
 JSON_OUTPUT_SINGING = 'docs/data/timestamps_singing.json'
-JSON_OUTPUT_ALL = 'docs/data/timestamps_all.json'
+JSON_OUTPUT_OTHER = 'docs/data/timestamps_other.json'
 CHANNELS_OUTPUT = 'docs/data/channels.json'
 
 # チャンネルID一覧
@@ -186,9 +186,9 @@ if __name__ == '__main__':
     print('[*] Web表示用データを生成します')
     print('='*70)
 
-    # 歌枠モードと総合モードの両方を処理
+    # 歌枠モードとそれ以外モードの両方を処理
     csv_to_json(CSV_INPUT_SINGING, JSON_OUTPUT_SINGING, '[歌枠モード] ')
-    csv_to_json(CSV_INPUT_ALL, JSON_OUTPUT_ALL, '[総合モード] ')
+    csv_to_json(CSV_INPUT_OTHER, JSON_OUTPUT_OTHER, '[それ以外モード] ')
     export_channel_info()
 
     print('\n' + '='*70)
@@ -196,7 +196,7 @@ if __name__ == '__main__':
     print('='*70)
     print(f'\n出力ファイル:')
     print(f'  - 歌枠のみ: {JSON_OUTPUT_SINGING}')
-    print(f'  - 総合: {JSON_OUTPUT_ALL}')
+    print(f'  - それ以外: {JSON_OUTPUT_OTHER}')
     print(f'\n次のステップ:')
     print(f'1. docs/index.html をブラウザで開いてローカルテスト')
     print(f'2. GitHub Pagesで公開する場合は設定を行ってください')

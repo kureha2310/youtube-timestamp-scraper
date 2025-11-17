@@ -8,14 +8,28 @@ function App() {
   const [genreFilter, setGenreFilter] = useState<Genre>('');
   const [sortBy, setSortBy] = useState<SortBy>('date-desc');
   const [activeChannels, setActiveChannels] = useState<Set<string>>(new Set());
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    // 初期値をlocalStorageから取得
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('darkMode');
+      return saved === 'true';
+    }
+    return false;
+  });
 
   useEffect(() => {
+    // ダークモード切り替え
+    const root = document.documentElement;
+    console.log('Dark mode:', darkMode);
+    console.log('Classes before:', root.className);
     if (darkMode) {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
+      localStorage.setItem('darkMode', 'true');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
+      localStorage.setItem('darkMode', 'false');
     }
+    console.log('Classes after:', root.className);
   }, [darkMode]);
 
   const { data, channels, loading, error } = useTimestamps(mode);
@@ -179,7 +193,7 @@ function App() {
                   }`}
                 >
                   <i className="fas fa-music text-xs"></i>
-                  歌枠のみ
+                  歌枠
                 </button>
                 <button
                   onClick={() => setMode('all')}
@@ -190,7 +204,7 @@ function App() {
                   }`}
                 >
                   <i className="fas fa-list text-xs"></i>
-                  総合
+                  それ以外
                 </button>
               </div>
               <button

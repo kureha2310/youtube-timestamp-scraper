@@ -4,9 +4,14 @@
 @theme {
   --font-sans: 'Noto Sans JP', 'Inter', system-ui, sans-serif;
   --font-mincho: 'Shippori Mincho', serif;
-
   --ease-elegant: cubic-bezier(0.4, 0.4, 0, 1);
+
+  /* Tailwind v4: ダークモード設定 */
+  --color-scheme: light dark;
 }
+
+/* ダークモードセレクター有効化 */
+@variant dark (&:is(.dark *));
 
 * {
   transition-timing-function: var(--ease-elegant);

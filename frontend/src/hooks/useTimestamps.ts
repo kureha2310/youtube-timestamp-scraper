@@ -16,7 +16,7 @@ export function useTimestamps(mode: Mode) {
         // データファイルのパス
         const dataFile = mode === 'singing'
           ? '/data/timestamps_singing.json'
-          : '/data/timestamps_all.json';
+          : '/data/timestamps_other.json';
 
         // タイムスタンプデータを取得
         const timestampsRes = await fetch(dataFile);

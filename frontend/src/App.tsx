@@ -156,6 +156,19 @@ function App() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* ダークモードトグル */}
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                aria-label="ダークモード切替"
+              >
+                {darkMode ? (
+                  <i className="fas fa-sun text-lg"></i>
+                ) : (
+                  <i className="fas fa-moon text-lg"></i>
+                )}
+              </button>
+
               <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                 <button
                   onClick={() => setMode('singing')}

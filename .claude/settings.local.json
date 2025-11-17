@@ -11,7 +11,12 @@
       "Bash(move \"README_仕組み解説.md\" docs )",
       "Bash(move:*)",
       "Bash(timeout 60 sleep:*)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(frontend/src/old-style.css)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

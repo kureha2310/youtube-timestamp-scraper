@@ -23,6 +23,36 @@ class MusicClassifier:
         '企画', 'コラボ', 'お便り', 'おたより', '告知',
         '読み上げ', '紹介', 'しょうかい', '参加', 'さんか',
         '登場', 'とうじょう', '出演', 'しゅつえん',
+        # 追加: 雑談・説明系
+        'の話', 'について', 'とは', '〜とは', '紹介', '募集', '決め',
+        # 追加: ラーメン・食べ物系
+        'ラーメン', '中華そば', 'そば', 'つけ麺', '製麺', 'スープ', '店舗',
+        '博物館', '食堂', 'カップ麺', '背脂', '味玉', 'どんぶり',
+        # 追加: ゲーム系
+        '昇格', '対決', '拡張', '初', 'part', 'パート', 'ルーレット',
+        'マイク', '事情', '活用', '方法', '確認', 'タグ',
+        # 追加: 状態・行動
+        '声入り', '寝起き', '意気込み', '披露', 'フラグ', '回収',
+        '再生', '同時視聴', '記念', 'マロ', 'ましゅまろ',
+        # 追加: 短い一般語
+        '可愛い', 'かわいい', 'かわちい', 'うわー', 'いやー', 'にゃ',
+        'おっけい', 'loading', 'Zzz',
+    ]
+
+    # 「〜の話」「〜について」などのパターン（正規表現）
+    NON_MUSIC_PATTERNS = [
+        r'.+の話$',
+        r'.+について$',
+        r'.+とは？?$',
+        r'.+事情$',
+        r'.+方法$',
+        r'part\s*\d+',
+        r'パート\s*\d+',
+        r'ルーレット',
+        r'^声入り',
+        r'削る$',
+        r'^問目',
+        r'^枚目',
     ]
 
     def __init__(self, request_delay: float = 3.0):
@@ -36,9 +66,26 @@ class MusicClassifier:
     def _contains_non_music_keyword(self, title: str) -> bool:
         """タイトルに歌以外のキーワードが含まれるかチェック"""
         title_lower = title.lower()
+
+        # キーワードチェック
         for keyword in self.NON_MUSIC_KEYWORDS:
             if keyword in title_lower:
                 return True
+
+        # パターンチェック（正規表現）
+        for pattern in self.NON_MUSIC_PATTERNS:
+            if re.search(pattern, title_lower):
+                return True
+
+        # 短すぎるタイトル（3文字以下）は除外
+        if len(title.strip()) <= 3:
+            return True
+
+        # 絵文字だらけのタイトルは除外
+        emoji_count = sum(1 for c in title if ord(c) > 0x1F000)
+        if emoji_count > len(title) * 0.3:  # 30%以上が絵文字
+            return True
+
         return False
 
     def search_itunes(self, song_title: str) -> Optional[Dict[str, str]]:

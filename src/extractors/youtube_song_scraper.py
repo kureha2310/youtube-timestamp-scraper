@@ -561,6 +561,7 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
 
     # 3. コメント取得 + 再フィルタリング
     print("\nコメントを取得中...")
+    filter_singing_only = False  # すべての動画を対象とする
     secondary_filtered_list = []
     for i, video_info in enumerate(filtered_video_list):
         try:
@@ -773,6 +774,7 @@ def main():
 
     # 3. コメント取得 + 再フィルタリング
     print("\nコメントを取得中...")
+    filter_singing_only = False  # すべての動画を対象とする
     secondary_filtered_list = []
     for i, video_info in enumerate(filtered_video_list):
         try:

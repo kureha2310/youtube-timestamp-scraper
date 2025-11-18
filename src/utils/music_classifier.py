@@ -128,11 +128,17 @@ class MusicClassifier:
 
         # 2. iTunes APIで検索（use_itunesがTrueの場合のみ）
         if use_itunes:
-            print(f"  [iTunes検索] {song_title}")
+            try:
+                print(f"  [iTunes検索] {song_title}")
+            except UnicodeEncodeError:
+                print(f"  [iTunes検索] [encoding error]")
             result = self.search_itunes(song_title)
 
             if result:
-                print(f"    → 見つかりました: {result['artist']}")
+                try:
+                    print(f"    → 見つかりました: {result['artist']}")
+                except UnicodeEncodeError:
+                    print(f"    → 見つかりました")
                 return {
                     'is_music': True,
                     'artist': result['artist'],

@@ -46,18 +46,14 @@ jobs:
         run: |
           python -c "
           from src.extractors.youtube_song_scraper import main
-          from src.utils.channel_manager import get_enabled_channels
 
-          channels = get_enabled_channels()
-          print(f'スクレイピング対象: {len(channels)}チャンネル')
-
-          for ch in channels:
-              print(f\"処理中: {ch['name']}...\")
-              try:
-                  main(channel_id=ch['channel_id'])
-              except Exception as e:
-                  print(f\"エラー: {ch['name']} - {e}\")
-                  continue
+          print('全チャンネルのタイムスタンプをスクレイピング中...')
+          try:
+              main()
+              print('スクレイピング完了！')
+          except Exception as e:
+              print(f'エラー: {e}')
+              raise
           "
 
       - name: Export data to JSON

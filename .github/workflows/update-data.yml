@@ -71,5 +71,6 @@ jobs:
           git add -A
           git diff --quiet && git diff --staged --quiet || (
             git commit -m "🤖 自動更新: タイムスタンプデータ $(date +'%Y-%m-%d %H:%M')" &&
+            git pull --rebase &&
             git push
           )

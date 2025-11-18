@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils.infoclass import VideoInfo, CommentInfo, TimeStamp
 from utils.utils import aligned_json_dump
 from utils.genre_classifier import GenreClassifier
+from utils.music_classifier import MusicClassifier
 
 load_dotenv()
 API_KEY = os.getenv('API_KEY')
@@ -657,6 +658,10 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
             'has_numbering': bool(re.match(r"^\s*\d+", raw_title))
         })
 
+    # 音楽分類器を初期化
+    music_classifier = MusicClassifier(request_delay=3.0)
+
+    print("\n[*] タイムスタンプを分類中...")
     for normalized_key, duplicates in duplicate_groups.items():
         best = max(duplicates, key=lambda x: (
             not x['has_numbering'],
@@ -664,8 +669,15 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
             len(x['artist'])
         ))
 
-        genre = analyzer.detect_genre(best['song_title'], best['artist'])
-        search_text = analyzer.to_hiragana(best['song_title'])
+        # 音楽かどうかを判定し、必要に応じてアーティスト情報を補完
+        classification = music_classifier.classify_timestamp(
+            best['song_title'],
+            best['artist'],
+            use_itunes=True
+        )
+
+        genre = analyzer.detect_genre(classification['title'], classification['artist'])
+        search_text = analyzer.to_hiragana(classification['title'])
 
         try:
             dt = datetime.fromisoformat((best['published_at'] or "").replace("Z", "+00:00"))
@@ -673,33 +685,66 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         except Exception:
             date_str = ""
 
-        rows.append([
+        row_data = [
             idx,
-            best['song_title'],
-            best['artist'],
+            classification['title'],
+            classification['artist'],
             search_text,
             genre,
             best['timestamp'],
             date_str,
             best['video_id'],
             f"{best['confidence']:.2f}",
-            best['total_seconds']
-        ])
+            best['total_seconds'],
+            classification['is_music']  # 音楽かどうかのフラグを追加
+        ]
+        rows.append(row_data)
         idx += 1
 
     rows.sort(key=lambda x: (x[6], x[9]))
 
+    # 歌とその他に分類
+    singing_rows = []
+    other_rows = []
+
     for i, row in enumerate(rows, 1):
         row[0] = i
-        row.pop()
+        is_music = row.pop()  # is_musicフラグを取り出す
+        total_seconds = row.pop()  # total_secondsを削除
 
-    # 6. CSV出力
-    with open(output_file, "w", encoding="utf-8-sig", newline="") as f:
+        if is_music:
+            singing_rows.append(row)
+        else:
+            other_rows.append(row)
+
+    # 再度連番を振り直す
+    for i, row in enumerate(singing_rows, 1):
+        row[0] = i
+    for i, row in enumerate(other_rows, 1):
+        row[0] = i
+
+    # 6. CSV出力（2つのファイル）
+    output_dir = os.path.dirname(output_file)
+    os.makedirs(output_dir, exist_ok=True)
+
+    output_singing = os.path.join(output_dir, "song_timestamps_singing_only.csv")
+    output_other = os.path.join(output_dir, "song_timestamps_other.csv")
+
+    with open(output_singing, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア"])
-        writer.writerows(rows)
+        writer.writerows(singing_rows)
 
-    print(f"\n完了！CSVを出力しました: {output_file}")
+    with open(output_other, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア"])
+        writer.writerows(other_rows)
+
+    rows = singing_rows + other_rows  # 統計表示用に結合
+
+    print(f"\n完了！CSVを出力しました:")
+    print(f"   - 歌枠: {output_singing} ({len(singing_rows)}件)")
+    print(f"   - その他: {output_other} ({len(other_rows)}件)")
     print(f"\n統計:")
     print(f"   - 処理した動画数: {len(filtered_video_list)}")
     print(f"   - 抽出したタイムスタンプ数: {len(all_timestamps)}")

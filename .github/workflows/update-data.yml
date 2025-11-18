@@ -16,6 +16,9 @@ on:
       - 'src/**'
       - 'export_to_web.py'
 
+permissions:
+  contents: write
+
 jobs:
   update-data:
     runs-on: ubuntu-latest

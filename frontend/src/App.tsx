@@ -8,6 +8,7 @@ function App() {
   const [genreFilter, setGenreFilter] = useState<Genre>('');
   const [sortBy, setSortBy] = useState<SortBy>('date-desc');
   const [activeChannels, setActiveChannels] = useState<Set<string>>(new Set());
+  const [hoveredChannel, setHoveredChannel] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(() => {
     // 初期値をlocalStorageから取得
     if (typeof window !== 'undefined') {
@@ -289,28 +290,64 @@ function App() {
             {/* 配信者フィルター */}
             <div className="lg:col-span-4 flex items-center gap-2 flex-wrap">
               {channels.map((channel) => (
-                <button
+                <div
                   key={channel.id}
-                  onClick={() => toggleChannel(channel.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                    activeChannels.has(channel.id)
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                      : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                  title={channel.name}
+                  className="relative"
+                  onMouseEnter={() => setHoveredChannel(channel.id)}
+                  onMouseLeave={() => setHoveredChannel(null)}
                 >
-                  <img
-                    src={channel.thumbnail || `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name)}&size=32&background=6366f1&color=fff&bold=true`}
-                    alt={channel.name}
-                    className="w-5 h-5 rounded-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name)}&size=32&background=6366f1&color=fff&bold=true`;
-                    }}
-                  />
-                  <span className="max-w-[80px] truncate">{channel.name}</span>
-                  <span className="text-[10px] opacity-70">({channelCounts[channel.id] || 0})</span>
-                </button>
+                  <button
+                    onClick={() => toggleChannel(channel.id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      activeChannels.has(channel.id)
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                    title={channel.name}
+                  >
+                    <img
+                      src={channel.thumbnail || `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name)}&size=32&background=6366f1&color=fff&bold=true`}
+                      alt={channel.name}
+                      className="w-5 h-5 rounded-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name)}&size=32&background=6366f1&color=fff&bold=true`;
+                      }}
+                    />
+                    <span className="max-w-[80px] truncate">{channel.name}</span>
+                    <span className="text-[10px] opacity-70">({channelCounts[channel.id] || 0})</span>
+                  </button>
+
+                  {/* ホバー時のポップアップ */}
+                  {hoveredChannel === channel.id && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
+                      <div className="bg-slate-900 dark:bg-slate-700 text-white px-3 py-2 rounded-lg shadow-xl text-xs whitespace-nowrap">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <img
+                            src={channel.thumbnail || `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name)}&size=32&background=6366f1&color=fff&bold=true`}
+                            alt={channel.name}
+                            className="w-6 h-6 rounded-full object-cover"
+                          />
+                          <span className="font-semibold">{channel.name}</span>
+                        </div>
+                        <a
+                          href={`https://www.youtube.com/channel/${channel.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="pointer-events-auto inline-flex items-center gap-1.5 text-indigo-300 hover:text-indigo-200 transition-colors font-medium"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <i className="fab fa-youtube text-sm"></i>
+                          チャンネルを開く
+                          <i className="fas fa-external-link-alt text-[10px]"></i>
+                        </a>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+                          <div className="border-8 border-transparent border-t-slate-900 dark:border-t-slate-700"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ))}
               {activeChannels.size > 0 && (
                 <button

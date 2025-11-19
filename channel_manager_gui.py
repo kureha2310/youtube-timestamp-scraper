@@ -502,8 +502,8 @@ print("=" * 60)
             if match:
                 channel_id = match.group(1)
 
-        # 種類フィルターを取得
-        content_filter = self.content_type.get()
+        # 種類フィルターを取得（content_typeがまだ初期化されていない場合はデフォルトで「全て」）
+        content_filter = self.content_type.get() if hasattr(self, 'content_type') else '全て'
 
         # CSVファイルを読み込み
         try:
@@ -527,8 +527,8 @@ print("=" * 60)
                 with open(csv_file, 'r', encoding='utf-8-sig') as f:
                     reader = csv.DictReader(f)
                     for row in reader:
-                        # チャンネルフィルター
-                        if channel_id and row.get('チャンネルID') != channel_id:
+                        # チャンネルフィルター（チャンネルID列がある場合のみ）
+                        if channel_id and 'チャンネルID' in row and row.get('チャンネルID') != channel_id:
                             continue
 
                         # テーブルに追加

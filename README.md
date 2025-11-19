@@ -9,7 +9,9 @@ YouTubeの配信動画からタイムスタンプ（曲名・アーティスト�
 - **確度スコア**: タイムスタンプの信頼性を0.0-1.0で評価
 - **重複除去**: 同じ曲の重複を自動排除
 - **統計表示**: 確度スコア分布・ジャンル別統計を表示
-- **📍 NEW: 文字列検索**: チャンネル内のコメント・字幕から特定文字列を検索
+- **🚀 NEW: 差分更新**: 前回以降の最新動画のみを高速取得
+- **🎨 NEW: ワンクリック更新**: Web表示を自動更新（CSV→JSON変換）
+- **📍 文字列検索**: チャンネル内のコメント・字幕から特定文字列を検索
 
 ## 📦 インストール
 
@@ -49,15 +51,39 @@ echo "API_KEY=your_api_key_here" > .env
 
 ### 2. スクレイプ実行
 
+#### 🚀 推奨: ワンクリック更新（最速）
+
 ```bash
-python main.py
+# Windows
+update_web.bat
+
+# Mac/Linux
+./update_web.sh
+
+# または直接実行
+python update_web.py
 ```
 
-メニューから「2. チャンネル選択してスクレイプ」を選択
+このコマンドで以下を自動実行：
+1. 最新動画のタイムスタンプ取得（差分更新）
+2. CSV生成
+3. Web表示用JSON生成
+
+#### 従来の方法
+
+```bash
+# 差分更新（最新動画のみ・高速）
+python scrape_latest.py
+
+# または全件取得（初回・完全リセット時）
+python scrape_all_channels.py
+```
 
 ### 3. 出力確認
 
-- `output/csv/song_timestamps_complete.csv` - メイン出力（CSV形式）
+- `output/csv/song_timestamps_singing_only.csv` - 歌枠のみ（CSV形式）
+- `output/csv/song_timestamps_other.csv` - その他（CSV形式）
+- `docs/data/timestamps_singing.json` - Web表示用（JSON形式）
 - `output/json/comment_info.json` - バックアップ（JSON形式）
 
 ## 📊 出力形式
@@ -128,6 +154,31 @@ youtube-timestamp-scraper/
 ```
 
 ## 🔧 高度な使い方
+
+### 🤖 GitHub Actionsで自動更新
+
+リポジトリに以下のSecretsを設定すると、毎日自動更新されます:
+
+1. GitHubリポジトリの Settings > Secrets > Actions で `YOUTUBE_API_KEY` を追加
+2. `.github/workflows/update-timestamps.yml` が毎日午前9時（JST）に実行
+3. 自動的にコミット・プッシュされます
+
+**手動実行:**
+1. GitHubリポジトリの "Actions" タブを開く
+2. "Auto Update Timestamps" を選択
+3. "Run workflow" をクリック
+
+### 差分更新 vs 全件取得
+
+| モード | 実行コマンド | 速度 | 用途 |
+|--------|------------|------|------|
+| 🚀 差分更新 | `update_web.py` / `scrape_latest.py` | 超高速 | 日常的な更新 |
+| 🔄 全件取得 | `scrape_all_channels.py` → 「2」選択 | 低速 | 初回・完全リセット |
+
+**仕組み:**
+- `last_scrape.json` に前回実行日時を記録
+- 次回は前回以降の動画のみを取得
+- 既存CSVに自動マージ（重複除去）
 
 ### ジャンル分類のカスタマイズ
 

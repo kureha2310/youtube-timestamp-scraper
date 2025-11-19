@@ -417,6 +417,55 @@ def is_singing_stream(title: str, description: str, comments: Optional[List[str]
     else:
         return False
 
+def merge_with_existing_csv(csv_file: str, new_rows: list) -> list:
+    """
+    既存CSVファイルと新しいデータをマージ（重複除去）
+
+    Args:
+        csv_file: 既存CSVファイルパス
+        new_rows: 新しいデータ行のリスト
+
+    Returns:
+        マージ後のデータ行リスト
+    """
+    if not os.path.exists(csv_file):
+        return new_rows
+
+    try:
+        existing_rows = []
+        with open(csv_file, 'r', encoding='utf-8-sig', newline='') as f:
+            reader = csv.reader(f)
+            header = next(reader, None)  # ヘッダーをスキップ
+            for row in reader:
+                existing_rows.append(row)
+
+        # 重複チェック用のキー (動画ID + タイムスタンプ)
+        existing_keys = {(row[7], row[5]) for row in existing_rows}  # (動画ID, タイムスタンプ)
+        new_unique_rows = []
+
+        for row in new_rows:
+            key = (row[7], row[5])
+            if key not in existing_keys:
+                new_unique_rows.append(row)
+                existing_keys.add(key)
+
+        # 既存データと新データを結合
+        merged = existing_rows + new_unique_rows
+
+        # 配信日でソート（古い順）
+        merged.sort(key=lambda x: (x[6], x[5]))  # 配信日、タイムスタンプでソート
+
+        # 連番を振り直す
+        for i, row in enumerate(merged, 1):
+            row[0] = i
+
+        print(f"  既存: {len(existing_rows)}件, 新規: {len(new_unique_rows)}件, 合計: {len(merged)}件")
+        return merged
+
+    except Exception as e:
+        print(f"  [!] CSVマージでエラー: {e}")
+        return new_rows
+
 def get_uploads_playlist_id(channel_id: str) -> str | None:
     """既存関数をそのまま使用"""
     if not channel_id or not channel_id.startswith("UC"):
@@ -435,8 +484,14 @@ def get_uploads_playlist_id(channel_id: str) -> str | None:
         print(f"チャンネル {channel_id} の uploads プレイリスト取得でエラー: {e}")
         return None
 
-def get_video_info_in_playlist(playlist_id: str) -> list[VideoInfo]:
-    """既存関数をそのまま使用"""
+def get_video_info_in_playlist(playlist_id: str, published_after: str = None) -> list[VideoInfo]:
+    """
+    プレイリストから動画情報を取得（差分更新対応）
+
+    Args:
+        playlist_id: プレイリストID
+        published_after: この日付以降の動画のみ取得（ISO 8601形式）
+    """
     video_info_list: list[VideoInfo] = []
     try:
         request = youtube.playlistItems().list(
@@ -445,12 +500,30 @@ def get_video_info_in_playlist(playlist_id: str) -> list[VideoInfo]:
             maxResults=50,
             fields="nextPageToken,items/snippet(publishedAt,title,description,resourceId/videoId)"
         )
+
+        filter_date = None
+        if published_after:
+            filter_date = datetime.fromisoformat(published_after.replace("Z", "+00:00"))
+
         while request:
             response = request.execute()
             items = response.get("items", [])
+
+            should_break = False
             for i in items:
                 vi = VideoInfo.from_response_snippet(i["snippet"])
                 vid = vi.id
+
+                # 日付フィルタリング（古い動画が出てきたら終了）
+                if filter_date:
+                    try:
+                        video_date = datetime.fromisoformat(vi.published_at.replace("Z", "+00:00"))
+                        if video_date < filter_date:
+                            print(f"  ✓ {filter_date.strftime('%Y-%m-%d')} より前の動画に到達、処理終了")
+                            should_break = True
+                            break
+                    except Exception as e:
+                        print(f"  ! 日付パースエラー: {e}")
 
                 # --- 動画詳細を追加で取得 ---
                 try:
@@ -470,6 +543,9 @@ def get_video_info_in_playlist(playlist_id: str) -> list[VideoInfo]:
                     print(f"動画 {vid} の詳細取得でエラー: {e}")
 
                 video_info_list.append(vi)
+
+            if should_break:
+                break
 
             request = youtube.playlistItems().list_next(request, response)
     except Exception as e:
@@ -500,7 +576,7 @@ def get_comments(video_id: str) -> list[CommentInfo]:
 
     return comment_list
 
-def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_timestamps_complete.csv", filter_singing_only: bool = False):
+def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_timestamps_complete.csv", filter_singing_only: bool = False, incremental: bool = True):
     """
     指定されたチャンネルIDリストをスクレイプする
 
@@ -508,14 +584,31 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         channel_ids: スクレイプするチャンネルIDのリスト
         output_file: 出力CSVファイル名（デフォルトはoutput/csv/に保存）
         filter_singing_only: Trueの場合は歌枠のみ、Falseの場合はすべての動画を対象
+        incremental: Trueの場合は差分更新、Falseの場合は全件取得
     """
     mode_text = "【歌枠モード】" if filter_singing_only else "【総合モード】"
-    print(f"YouTubeタイムスタンプ抽出ツール {mode_text}")
+    update_text = "【差分更新】" if incremental else "【全件取得】"
+    print(f"YouTubeタイムスタンプ抽出ツール {mode_text} {update_text}")
     print("=" * 60)
     print(f"対象チャンネル数: {len(channel_ids)}")
     print()
 
     analyzer = EnhancedAnalyzer()
+
+    # 前回実行日時を読み込む
+    published_after = None
+    if incremental:
+        try:
+            with open('last_scrape.json', 'r', encoding='utf-8') as f:
+                last_scrape_data = json.load(f)
+                last_run = last_scrape_data.get('last_run')
+                if last_run:
+                    published_after = last_run
+                    print(f"[差分更新] {last_run} 以降の動画を取得します")
+                else:
+                    print("[差分更新] 初回実行のため全動画を取得します")
+        except FileNotFoundError:
+            print("[差分更新] last_scrape.json が見つかりません。全動画を取得します")
 
     # 1. 動画情報取得
     uploads_ids: list[str] = []
@@ -528,7 +621,7 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
 
     video_info_list: list[VideoInfo] = []
     for upid in uploads_ids:
-        video_info_list += get_video_info_in_playlist(upid)
+        video_info_list += get_video_info_in_playlist(upid, published_after=published_after)
 
     # 2. フィルタリング
     if filter_singing_only:
@@ -723,12 +816,18 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
     for i, row in enumerate(other_rows, 1):
         row[0] = i
 
-    # 6. CSV出力（2つのファイル）
+    # 6. 既存CSVとマージ（差分更新の場合）
     output_dir = os.path.dirname(output_file)
     os.makedirs(output_dir, exist_ok=True)
 
     output_singing = os.path.join(output_dir, "song_timestamps_singing_only.csv")
     output_other = os.path.join(output_dir, "song_timestamps_other.csv")
+
+    if incremental:
+        # 既存データを読み込んでマージ
+        singing_rows = merge_with_existing_csv(output_singing, singing_rows)
+        other_rows = merge_with_existing_csv(output_other, other_rows)
+        print(f"\n[差分更新] 既存データとマージしました")
 
     with open(output_singing, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
@@ -776,6 +875,16 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
     vi_dict = [asdict(vi) for vi in filtered_video_list]
     aligned_json_dump(vi_dict, "output/json/comment_info.json")
     print(f"\nバックアップJSONも作成: output/json/comment_info.json")
+
+    # 実行日時を保存（次回の差分更新用）
+    if incremental:
+        now = datetime.now(timezone.utc).isoformat()
+        with open('last_scrape.json', 'w', encoding='utf-8') as f:
+            json.dump({
+                'last_run': now,
+                'note': 'このファイルは最後にスクレイプした日時を記録します'
+            }, f, ensure_ascii=False, indent=2)
+        print(f"\n[差分更新] 次回実行時は {now} 以降の動画を取得します")
 
 
 def main():

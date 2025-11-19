@@ -2,6 +2,7 @@ import json
 import os
 import re
 import csv
+import sys
 from datetime import datetime, timezone, timedelta
 from dataclasses import asdict
 from typing import List, Optional
@@ -9,17 +10,32 @@ from typing import List, Optional
 from googleapiclient import discovery
 from dotenv import load_dotenv
 
+# Windows環境でのcp932エンコーディングエラーを防ぐための設定
+if sys.platform == 'win32':
+    # 標準出力をUTF-8に設定（Python 3.7+）
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
+def safe_print(text):
+    """エンコーディングエラーを回避する安全なprint関数"""
+    try:
+        safe_print(text)
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        # エンコードできない文字を置き換える
+        safe_text = str(text).encode('ascii', 'replace').decode('ascii')
+        safe_print(safe_text)
+
 # MeCabのインポート（オプション）
 try:
     import MeCab
     mecab_reading = MeCab.Tagger('-Oyomi')
-    print("MeCab loaded successfully")
+    safe_print("MeCab loaded successfully")
 except (ImportError, RuntimeError) as e:
-    print(f"MeCab not available: {type(e).__name__}. Using simple hiragana conversion.")
+    safe_print(f"MeCab not available: {type(e).__name__}. Using simple hiragana conversion.")
     mecab_reading = None
 
-import sys
-import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from utils.infoclass import VideoInfo, CommentInfo, TimeStamp
@@ -43,7 +59,7 @@ try:
     else:
         users = user_data  # 旧形式（配列）
 except FileNotFoundError:
-    print("user_ids.json が見つかりません。サンプルを作成します。")
+    safe_print("user_ids.json が見つかりません。サンプルを作成します。")
     users = ["UCxxxxxxxxxxxxxxxxxxxxxx"]
     with open('user_ids.json', 'w', encoding='utf-8') as f:
         json.dump(users, f, ensure_ascii=False, indent=2)
@@ -459,11 +475,11 @@ def merge_with_existing_csv(csv_file: str, new_rows: list) -> list:
         for i, row in enumerate(merged, 1):
             row[0] = i
 
-        print(f"  既存: {len(existing_rows)}件, 新規: {len(new_unique_rows)}件, 合計: {len(merged)}件")
+        safe_print(f"  既存: {len(existing_rows)}件, 新規: {len(new_unique_rows)}件, 合計: {len(merged)}件")
         return merged
 
     except Exception as e:
-        print(f"  [!] CSVマージでエラー: {e}")
+        safe_print(f"  [!] CSVマージでエラー: {e}")
         return new_rows
 
 def get_uploads_playlist_id(channel_id: str) -> str | None:
@@ -481,7 +497,7 @@ def get_uploads_playlist_id(channel_id: str) -> str | None:
             return None
         return items[0]["contentDetails"]["relatedPlaylists"]["uploads"]
     except Exception as e:
-        print(f"チャンネル {channel_id} の uploads プレイリスト取得でエラー: {e}")
+        safe_print(f"チャンネル {channel_id} の uploads プレイリスト取得でエラー: {e}")
         return None
 
 def get_video_info_in_playlist(playlist_id: str, published_after: str = None) -> list[VideoInfo]:
@@ -519,11 +535,11 @@ def get_video_info_in_playlist(playlist_id: str, published_after: str = None) ->
                     try:
                         video_date = datetime.fromisoformat(vi.published_at.replace("Z", "+00:00"))
                         if video_date < filter_date:
-                            print(f"  ✓ {filter_date.strftime('%Y-%m-%d')} より前の動画に到達、処理終了")
+                            safe_print(f"  ✓ {filter_date.strftime('%Y-%m-%d')} より前の動画に到達、処理終了")
                             should_break = True
                             break
                     except Exception as e:
-                        print(f"  ! 日付パースエラー: {e}")
+                        safe_print(f"  ! 日付パースエラー: {e}")
 
                 # --- 動画詳細を追加で取得 ---
                 try:
@@ -540,7 +556,7 @@ def get_video_info_in_playlist(playlist_id: str, published_after: str = None) ->
                             vi.stream_start = item["snippet"]["publishedAt"]
 
                 except Exception as e:
-                    print(f"動画 {vid} の詳細取得でエラー: {e}")
+                    safe_print(f"動画 {vid} の詳細取得でエラー: {e}")
 
                 video_info_list.append(vi)
 
@@ -549,7 +565,7 @@ def get_video_info_in_playlist(playlist_id: str, published_after: str = None) ->
 
             request = youtube.playlistItems().list_next(request, response)
     except Exception as e:
-        print(f"プレイリスト {playlist_id} の取得でエラー: {e}")
+        safe_print(f"プレイリスト {playlist_id} の取得でエラー: {e}")
     return video_info_list
 
 def get_comments(video_id: str) -> list[CommentInfo]:
@@ -572,7 +588,7 @@ def get_comments(video_id: str) -> list[CommentInfo]:
                 comment_list.extend(CommentInfo.response_item_to_comments(item))
             request = youtube.commentThreads().list_next(request, response)
     except Exception as e:
-        print(f"動画 {video_id} のコメント取得でエラー: {e}")
+        safe_print(f"動画 {video_id} のコメント取得でエラー: {e}")
 
     return comment_list
 
@@ -588,10 +604,10 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
     """
     mode_text = "【歌枠モード】" if filter_singing_only else "【総合モード】"
     update_text = "【差分更新】" if incremental else "【全件取得】"
-    print(f"YouTubeタイムスタンプ抽出ツール {mode_text} {update_text}")
-    print("=" * 60)
-    print(f"対象チャンネル数: {len(channel_ids)}")
-    print()
+    safe_print(f"YouTubeタイムスタンプ抽出ツール {mode_text} {update_text}")
+    safe_print("=" * 60)
+    safe_print(f"対象チャンネル数: {len(channel_ids)}")
+    safe_print()
 
     analyzer = EnhancedAnalyzer()
 
@@ -604,11 +620,11 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
                 last_run = last_scrape_data.get('last_run')
                 if last_run:
                     published_after = last_run
-                    print(f"[差分更新] {last_run} 以降の動画を取得します")
+                    safe_print(f"[差分更新] {last_run} 以降の動画を取得します")
                 else:
-                    print("[差分更新] 初回実行のため全動画を取得します")
+                    safe_print("[差分更新] 初回実行のため全動画を取得します")
         except FileNotFoundError:
-            print("[差分更新] last_scrape.json が見つかりません。全動画を取得します")
+            safe_print("[差分更新] last_scrape.json が見つかりません。全動画を取得します")
 
     # 1. 動画情報取得
     uploads_ids: list[str] = []
@@ -617,7 +633,7 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         if up:
             uploads_ids.append(up)
         else:
-            print(f"取得失敗: {uc}")
+            safe_print(f"取得失敗: {uc}")
 
     video_info_list: list[VideoInfo] = []
     for upid in uploads_ids:
@@ -635,33 +651,33 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
             
             if is_singing_stream(vi.title, vi.description) or has_timestamp_in_desc or is_debut_or_special:
                 filtered_video_list.append(vi)
-        print(f"全動画数: {len(video_info_list)}, 歌枠動画数: {len(filtered_video_list)}")
-        print("\n=== 歌枠として検出された動画 ===")
+        safe_print(f"全動画数: {len(video_info_list)}, 歌枠動画数: {len(filtered_video_list)}")
+        safe_print("\n=== 歌枠として検出された動画 ===")
     else:
         # すべての動画を対象
         filtered_video_list = []
         for vi in video_info_list:
             filtered_video_list.append(vi)
-        print(f"全動画数: {len(video_info_list)}, 処理対象動画数: {len(filtered_video_list)}")
-        print("\n=== 処理対象の動画 ===")
+        safe_print(f"全動画数: {len(video_info_list)}, 処理対象動画数: {len(filtered_video_list)}")
+        safe_print("\n=== 処理対象の動画 ===")
     for i, vi in enumerate(filtered_video_list[:10]):
         try:
-            print(f"{i+1}. {vi.title}")
+            safe_print(f"{i+1}. {vi.title}")
         except UnicodeEncodeError:
             safe_title = vi.title.encode('ascii', 'ignore').decode('ascii')
-            print(f"{i+1}. {safe_title} [...]")
+            safe_print(f"{i+1}. {safe_title} [...]")
     if len(filtered_video_list) > 10:
-        print(f"... 他 {len(filtered_video_list) - 10} 件")
+        safe_print(f"... 他 {len(filtered_video_list) - 10} 件")
 
     # 3. コメント取得 + 再フィルタリング
-    print("\nコメントを取得中...")
+    safe_print("\nコメントを取得中...")
     filter_singing_only = False  # すべての動画を対象とする
     secondary_filtered_list = []
     for i, video_info in enumerate(filtered_video_list):
         try:
-            print(f"{i+1}/{len(filtered_video_list)}: {video_info.title}")
+            safe_print(f"{i+1}/{len(filtered_video_list)}: {video_info.title}")
         except UnicodeEncodeError:
-            print(f"{i+1}/{len(filtered_video_list)}: [title with emoji]")
+            safe_print(f"{i+1}/{len(filtered_video_list)}: [title with emoji]")
         video_info.comments = get_comments(video_info.id)
 
         if filter_singing_only:
@@ -670,19 +686,19 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
             if is_singing_stream(video_info.title, video_info.description, comment_texts):
                 secondary_filtered_list.append(video_info)
             else:
-                print(f"  → コメント分析により除外")
+                safe_print(f"  → コメント分析により除外")
         else:
             # すべての動画を通す
             secondary_filtered_list.append(video_info)
 
     filtered_video_list = secondary_filtered_list
     if filter_singing_only:
-        print(f"\nコメント分析後の歌枠動画数: {len(filtered_video_list)}")
+        safe_print(f"\nコメント分析後の歌枠動画数: {len(filtered_video_list)}")
     else:
-        print(f"\n処理対象動画数: {len(filtered_video_list)}")
+        safe_print(f"\n処理対象動画数: {len(filtered_video_list)}")
 
     # 4. タイムスタンプ抽出
-    print("\nタイムスタンプを抽出中...")
+    safe_print("\nタイムスタンプを抽出中...")
     all_timestamps = []
     video_timestamps_map = {}  # 動画IDごとのタイムスタンプを保持
 
@@ -691,10 +707,10 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         all_timestamps.extend(ts_list)
         video_timestamps_map[v.id] = ts_list  # 動画ごとに保存
 
-    print(f"抽出されたタイムスタンプ数: {len(all_timestamps)}")
+    safe_print(f"抽出されたタイムスタンプ数: {len(all_timestamps)}")
 
     # 5. CSV形式に変換（重複除去強化版）
-    print("\nCSV形式に変換中...")
+    safe_print("\nCSV形式に変換中...")
     rows = []
     seen = {}
     duplicate_groups = {}
@@ -754,7 +770,7 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
     # 音楽分類器を初期化
     music_classifier = MusicClassifier(request_delay=3.0)
 
-    print("\n[*] タイムスタンプを分類中...")
+    safe_print("\n[*] タイムスタンプを分類中...")
     for normalized_key, duplicates in duplicate_groups.items():
         best = max(duplicates, key=lambda x: (
             not x['has_numbering'],
@@ -827,7 +843,7 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         # 既存データを読み込んでマージ
         singing_rows = merge_with_existing_csv(output_singing, singing_rows)
         other_rows = merge_with_existing_csv(output_other, other_rows)
-        print(f"\n[差分更新] 既存データとマージしました")
+        safe_print(f"\n[差分更新] 既存データとマージしました")
 
     with open(output_singing, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
@@ -841,13 +857,13 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
 
     rows = singing_rows + other_rows  # 統計表示用に結合
 
-    print(f"\n完了！CSVを出力しました:")
-    print(f"   - 歌枠: {output_singing} ({len(singing_rows)}件)")
-    print(f"   - その他: {output_other} ({len(other_rows)}件)")
-    print(f"\n統計:")
-    print(f"   - 処理した動画数: {len(filtered_video_list)}")
-    print(f"   - 抽出したタイムスタンプ数: {len(all_timestamps)}")
-    print(f"   - 最終出力行数: {len(rows)}")
+    safe_print(f"\n完了！CSVを出力しました:")
+    safe_print(f"   - 歌枠: {output_singing} ({len(singing_rows)}件)")
+    safe_print(f"   - その他: {output_other} ({len(other_rows)}件)")
+    safe_print(f"\n統計:")
+    safe_print(f"   - 処理した動画数: {len(filtered_video_list)}")
+    safe_print(f"   - 抽出したタイムスタンプ数: {len(all_timestamps)}")
+    safe_print(f"   - 最終出力行数: {len(rows)}")
 
     if rows:
         # 確度スコア統計
@@ -856,11 +872,11 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         med_conf = len([s for s in scores if 0.4 <= s <= 0.7])
         low_conf = len([s for s in scores if s < 0.4])
 
-        print(f"\n   確度スコア分布:")
-        print(f"   - 高確度 (>0.7): {high_conf}件 ({high_conf/len(rows)*100:.1f}%)")
-        print(f"   - 中確度 (0.4-0.7): {med_conf}件 ({med_conf/len(rows)*100:.1f}%)")
-        print(f"   - 低確度 (<0.4): {low_conf}件 ({low_conf/len(rows)*100:.1f}%)")
-        print(f"   - 平均確度: {sum(scores)/len(scores):.2f}")
+        safe_print(f"\n   確度スコア分布:")
+        safe_print(f"   - 高確度 (>0.7): {high_conf}件 ({high_conf/len(rows)*100:.1f}%)")
+        safe_print(f"   - 中確度 (0.4-0.7): {med_conf}件 ({med_conf/len(rows)*100:.1f}%)")
+        safe_print(f"   - 低確度 (<0.4): {low_conf}件 ({low_conf/len(rows)*100:.1f}%)")
+        safe_print(f"   - 平均確度: {sum(scores)/len(scores):.2f}")
 
         # ジャンル別統計
         genre_stats = {}
@@ -868,13 +884,13 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
             genre = row[4]  # ジャンル列
             genre_stats[genre] = genre_stats.get(genre, 0) + 1
 
-        print(f"\n   ジャンル別統計:")
+        safe_print(f"\n   ジャンル別統計:")
         for genre, count in sorted(genre_stats.items(), key=lambda x: x[1], reverse=True):
-            print(f"   - {genre}: {count}曲 ({count/len(rows)*100:.1f}%)")
+            safe_print(f"   - {genre}: {count}曲 ({count/len(rows)*100:.1f}%)")
 
     vi_dict = [asdict(vi) for vi in filtered_video_list]
     aligned_json_dump(vi_dict, "output/json/comment_info.json")
-    print(f"\nバックアップJSONも作成: output/json/comment_info.json")
+    safe_print(f"\nバックアップJSONも作成: output/json/comment_info.json")
 
     # 実行日時を保存（次回の差分更新用）
     if incremental:
@@ -884,12 +900,12 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
                 'last_run': now,
                 'note': 'このファイルは最後にスクレイプした日時を記録します'
             }, f, ensure_ascii=False, indent=2)
-        print(f"\n[差分更新] 次回実行時は {now} 以降の動画を取得します")
+        safe_print(f"\n[差分更新] 次回実行時は {now} 以降の動画を取得します")
 
 
 def main():
-    print("YouTube歌動画タイムスタンプ抽出ツール（統合版）")
-    print("=" * 60)
+    safe_print("YouTube歌動画タイムスタンプ抽出ツール（統合版）")
+    safe_print("=" * 60)
 
     analyzer = EnhancedAnalyzer()
 
@@ -900,7 +916,7 @@ def main():
         if up:
             uploads_ids.append(up)
         else:
-            print(f"取得失敗: {uc}")
+            safe_print(f"取得失敗: {uc}")
 
     video_info_list: list[VideoInfo] = []
     for upid in uploads_ids:
@@ -913,28 +929,28 @@ def main():
         # すべての動画を通す（タイムスタンプがあれば抽出）
         filtered_video_list.append(vi)
 
-    print(f"全動画数: {len(video_info_list)}, 処理対象動画数: {len(filtered_video_list)}")
+    safe_print(f"全動画数: {len(video_info_list)}, 処理対象動画数: {len(filtered_video_list)}")
 
-    print("\n=== 処理対象の動画 ===")
+    safe_print("\n=== 処理対象の動画 ===")
     for i, vi in enumerate(filtered_video_list[:10]):
         try:
-            print(f"{i+1}. {vi.title}")
+            safe_print(f"{i+1}. {vi.title}")
         except UnicodeEncodeError:
             # 絵文字などが含まれる場合はエンコードして表示
             safe_title = vi.title.encode('ascii', 'ignore').decode('ascii')
-            print(f"{i+1}. {safe_title} [...]")
+            safe_print(f"{i+1}. {safe_title} [...]")
     if len(filtered_video_list) > 10:
-        print(f"... 他 {len(filtered_video_list) - 10} 件")
+        safe_print(f"... 他 {len(filtered_video_list) - 10} 件")
 
     # 3. コメント取得 + 再フィルタリング
-    print("\nコメントを取得中...")
+    safe_print("\nコメントを取得中...")
     filter_singing_only = False  # すべての動画を対象とする
     secondary_filtered_list = []
     for i, video_info in enumerate(filtered_video_list):
         try:
-            print(f"{i+1}/{len(filtered_video_list)}: {video_info.title}")
+            safe_print(f"{i+1}/{len(filtered_video_list)}: {video_info.title}")
         except UnicodeEncodeError:
-            print(f"{i+1}/{len(filtered_video_list)}: [title with emoji]")
+            safe_print(f"{i+1}/{len(filtered_video_list)}: [title with emoji]")
         video_info.comments = get_comments(video_info.id)
 
         if filter_singing_only:
@@ -943,19 +959,19 @@ def main():
             if is_singing_stream(video_info.title, video_info.description, comment_texts):
                 secondary_filtered_list.append(video_info)
             else:
-                print(f"  → コメント分析により除外")
+                safe_print(f"  → コメント分析により除外")
         else:
             # すべての動画を通す
             secondary_filtered_list.append(video_info)
 
     filtered_video_list = secondary_filtered_list
     if filter_singing_only:
-        print(f"\nコメント分析後の歌枠動画数: {len(filtered_video_list)}")
+        safe_print(f"\nコメント分析後の歌枠動画数: {len(filtered_video_list)}")
     else:
-        print(f"\n処理対象動画数: {len(filtered_video_list)}")
+        safe_print(f"\n処理対象動画数: {len(filtered_video_list)}")
 
     # 4. タイムスタンプ抽出
-    print("\nタイムスタンプを抽出中...")
+    safe_print("\nタイムスタンプを抽出中...")
     all_timestamps = []
     video_timestamps_map = {}  # 動画IDごとのタイムスタンプを保持
 
@@ -964,10 +980,10 @@ def main():
         all_timestamps.extend(ts_list)
         video_timestamps_map[v.id] = ts_list  # 動画ごとに保存
 
-    print(f"抽出されたタイムスタンプ数: {len(all_timestamps)}")
+    safe_print(f"抽出されたタイムスタンプ数: {len(all_timestamps)}")
 
     # 5. CSV形式に変換（重複除去強化版）
-    print("\nCSV形式に変換中...")
+    safe_print("\nCSV形式に変換中...")
     rows = []
     seen = {}
     duplicate_groups = {}  # 重複をグループ化
@@ -1032,7 +1048,7 @@ def main():
     # 音楽分類器を初期化
     music_classifier = MusicClassifier(request_delay=3.0)
 
-    print("\n[*] タイムスタンプを分類中...")
+    safe_print("\n[*] タイムスタンプを分類中...")
     # 第2パス: 各グループから最適なものを選択し、分類
     for normalized_key, duplicates in duplicate_groups.items():
         # 優先順位: ナンバリングなし > 詳細な曲名 > 長い曲名
@@ -1119,13 +1135,13 @@ def main():
 
     rows = singing_rows + other_rows  # 統計表示用に結合
 
-    print(f"\n完了！CSVを出力しました:")
-    print(f"   - 歌枠: {output_singing} ({len(singing_rows)}件)")
-    print(f"   - その他: {output_other} ({len(other_rows)}件)")
-    print(f"\n統計:")
-    print(f"   - 処理した動画数: {len(filtered_video_list)}")
-    print(f"   - 抽出したタイムスタンプ数: {len(all_timestamps)}")
-    print(f"   - 最終出力行数: {len(rows)}")
+    safe_print(f"\n完了！CSVを出力しました:")
+    safe_print(f"   - 歌枠: {output_singing} ({len(singing_rows)}件)")
+    safe_print(f"   - その他: {output_other} ({len(other_rows)}件)")
+    safe_print(f"\n統計:")
+    safe_print(f"   - 処理した動画数: {len(filtered_video_list)}")
+    safe_print(f"   - 抽出したタイムスタンプ数: {len(all_timestamps)}")
+    safe_print(f"   - 最終出力行数: {len(rows)}")
 
     if rows:
         # 確度スコア統計
@@ -1134,11 +1150,11 @@ def main():
         med_conf = len([s for s in scores if 0.4 <= s <= 0.7])
         low_conf = len([s for s in scores if s < 0.4])
 
-        print(f"\n   確度スコア分布:")
-        print(f"   - 高確度 (>0.7): {high_conf}件 ({high_conf/len(rows)*100:.1f}%)")
-        print(f"   - 中確度 (0.4-0.7): {med_conf}件 ({med_conf/len(rows)*100:.1f}%)")
-        print(f"   - 低確度 (<0.4): {low_conf}件 ({low_conf/len(rows)*100:.1f}%)")
-        print(f"   - 平均確度: {sum(scores)/len(scores):.2f}")
+        safe_print(f"\n   確度スコア分布:")
+        safe_print(f"   - 高確度 (>0.7): {high_conf}件 ({high_conf/len(rows)*100:.1f}%)")
+        safe_print(f"   - 中確度 (0.4-0.7): {med_conf}件 ({med_conf/len(rows)*100:.1f}%)")
+        safe_print(f"   - 低確度 (<0.4): {low_conf}件 ({low_conf/len(rows)*100:.1f}%)")
+        safe_print(f"   - 平均確度: {sum(scores)/len(scores):.2f}")
 
         # ジャンル別統計
         genre_stats = {}
@@ -1146,14 +1162,14 @@ def main():
             genre = row[4]  # ジャンル列
             genre_stats[genre] = genre_stats.get(genre, 0) + 1
 
-        print(f"\n   ジャンル別統計:")
+        safe_print(f"\n   ジャンル別統計:")
         for genre, count in sorted(genre_stats.items(), key=lambda x: x[1], reverse=True):
-            print(f"   - {genre}: {count}曲 ({count/len(rows)*100:.1f}%)")
+            safe_print(f"   - {genre}: {count}曲 ({count/len(rows)*100:.1f}%)")
 
     # JSONファイルも保存（バックアップ用）
     vi_dict = [asdict(vi) for vi in filtered_video_list]
     aligned_json_dump(vi_dict, "output/json/comment_info.json")
-    print(f"\nバックアップJSONも作成: output/json/comment_info.json")
+    safe_print(f"\nバックアップJSONも作成: output/json/comment_info.json")
 
 if __name__ == "__main__":
     main()

@@ -297,13 +297,18 @@ class ChannelManagerGUI:
         """スクレイピングを別スレッドで実行"""
         try:
             # update_vercel.pyを実行
+            # Windowsのcp932エンコーディング問題を回避するため、環境変数を設定
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
+
             process = subprocess.Popen(
                 ['python', 'update_vercel.py', '--auto'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 encoding='utf-8',
-                errors='replace'
+                errors='replace',
+                env=env
             )
 
             # 出力をリアルタイムで表示

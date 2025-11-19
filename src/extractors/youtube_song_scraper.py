@@ -452,7 +452,14 @@ def merge_with_existing_csv(csv_file: str, new_rows: list) -> list:
         with open(csv_file, 'r', encoding='utf-8-sig', newline='') as f:
             reader = csv.reader(f)
             header = next(reader, None)  # ヘッダーをスキップ
+
+            # ヘッダーにチャンネルID列があるかチェック
+            has_channel_id = header and 'チャンネルID' in header
+
             for row in reader:
+                # 既存データにチャンネルID列がない場合は空文字を追加
+                if not has_channel_id and len(row) == 9:
+                    row.append('')  # チャンネルID列を空で追加
                 existing_rows.append(row)
 
         # 重複チェック用のキー (動画ID + タイムスタンプ)

@@ -21,11 +21,11 @@ if sys.platform == 'win32':
 def safe_print(text):
     """エンコーディングエラーを回避する安全なprint関数"""
     try:
-        safe_print(text)
+        print(text)
     except (UnicodeEncodeError, UnicodeDecodeError):
         # エンコードできない文字を置き換える
         safe_text = str(text).encode('ascii', 'replace').decode('ascii')
-        safe_print(safe_text)
+        print(safe_text)
 
 # MeCabのインポート（オプション）
 try:

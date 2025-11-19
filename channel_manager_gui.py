@@ -436,6 +436,9 @@ print("=" * 60)
 
         self.tree.pack(fill='both', expand=True)
 
+        # ダブルクリックでYouTubeリンクを開く
+        self.tree.bind('<Double-Button-1>', self.open_youtube_link)
+
         # 初期データ読み込み
         self.refresh_channel_list()
 
@@ -517,6 +520,45 @@ print("=" * 60)
         """タイムスタンプビューを更新"""
         self.load_timestamps(None)
         messagebox.showinfo("更新", "タイムスタンプを更新しました")
+
+    def open_youtube_link(self, event):
+        """ダブルクリックされた行のYouTube動画を開く"""
+        import webbrowser
+
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        item = selection[0]
+        values = self.tree.item(item, 'values')
+
+        if len(values) >= 7:
+            video_id = values[6]  # 動画ID列
+            timestamp = values[4]  # タイムスタンプ列
+
+            # タイムスタンプから秒数を抽出
+            time_param = ""
+            if timestamp:
+                try:
+                    # "0:00:00" または "0:00" 形式から秒数を計算
+                    parts = timestamp.split(':')
+                    if len(parts) == 3:
+                        hours, minutes, seconds = map(int, parts)
+                        total_seconds = hours * 3600 + minutes * 60 + seconds
+                    elif len(parts) == 2:
+                        minutes, seconds = map(int, parts)
+                        total_seconds = minutes * 60 + seconds
+                    else:
+                        total_seconds = 0
+
+                    if total_seconds > 0:
+                        time_param = f"&t={total_seconds}s"
+                except:
+                    pass
+
+            # YouTubeリンクを開く
+            url = f"https://www.youtube.com/watch?v={video_id}{time_param}"
+            webbrowser.open(url)
 
 def main():
     root = tk.Tk()

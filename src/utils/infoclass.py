@@ -52,6 +52,7 @@ class VideoInfo:
     published_at: str
     comments: List[CommentInfo]
     stream_start: str = None  # stream_start属性を追加
+    channel_id: str = None  # チャンネルID
 
     @classmethod
     def from_response_snippet(cls, response_snippet: Dict[str, Any]) -> "VideoInfo":

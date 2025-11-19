@@ -500,13 +500,14 @@ def get_uploads_playlist_id(channel_id: str) -> str | None:
         safe_print(f"チャンネル {channel_id} の uploads プレイリスト取得でエラー: {e}")
         return None
 
-def get_video_info_in_playlist(playlist_id: str, published_after: str = None) -> list[VideoInfo]:
+def get_video_info_in_playlist(playlist_id: str, published_after: str = None, channel_id: str = None) -> list[VideoInfo]:
     """
     プレイリストから動画情報を取得（差分更新対応）
 
     Args:
         playlist_id: プレイリストID
         published_after: この日付以降の動画のみ取得（ISO 8601形式）
+        channel_id: チャンネルID（VideoInfoに設定）
     """
     video_info_list: list[VideoInfo] = []
     try:
@@ -528,6 +529,7 @@ def get_video_info_in_playlist(playlist_id: str, published_after: str = None) ->
             should_break = False
             for i in items:
                 vi = VideoInfo.from_response_snippet(i["snippet"])
+                vi.channel_id = channel_id  # チャンネルIDを設定
                 vid = vi.id
 
                 # 日付フィルタリング（古い動画が出てきたら終了）
@@ -627,17 +629,18 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
             safe_print("[差分更新] last_scrape.json が見つかりません。全動画を取得します")
 
     # 1. 動画情報取得
-    uploads_ids: list[str] = []
+    # チャンネルIDとupload playlist IDの対応を保持
+    channel_uploads_map = {}
     for uc in channel_ids:
         up = get_uploads_playlist_id(uc)
         if up:
-            uploads_ids.append(up)
+            channel_uploads_map[up] = uc
         else:
             safe_print(f"取得失敗: {uc}")
 
     video_info_list: list[VideoInfo] = []
-    for upid in uploads_ids:
-        video_info_list += get_video_info_in_playlist(upid, published_after=published_after)
+    for upid, channel_id in channel_uploads_map.items():
+        video_info_list += get_video_info_in_playlist(upid, published_after=published_after, channel_id=channel_id)
 
     # 2. フィルタリング
     if filter_singing_only:
@@ -723,11 +726,13 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         published_at = getattr(entry, 'stream_start', None) or entry.published_at
 
         confidence = 0.0
+        video_channel_id = None
         for vi in filtered_video_list:
             if vi.id == video_id:
                 # 改善版：動画のタイムスタンプを渡す
                 ts_for_video = video_timestamps_map.get(video_id, [])
                 confidence = analyzer.calculate_confidence_score(vi, ts_for_video)
+                video_channel_id = vi.channel_id  # チャンネルIDを取得
                 break
 
         song_title, artist = analyzer.parse_song_title_artist(raw_title)
@@ -804,6 +809,7 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
             date_str,
             best['video_id'],
             f"{best['confidence']:.2f}",
+            video_channel_id,  # チャンネルID
             best['total_seconds'],
             classification['is_music']  # 音楽かどうかのフラグを追加
         ]
@@ -820,6 +826,7 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         row[0] = i
         is_music = row.pop()  # is_musicフラグを取り出す
         total_seconds = row.pop()  # total_secondsを削除
+        # channel_idはそのまま残す（row[8]）
 
         if is_music:
             singing_rows.append(row)
@@ -847,12 +854,12 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
 
     with open(output_singing, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア"])
+        writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア","チャンネルID"])
         writer.writerows(singing_rows)
 
     with open(output_other, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア"])
+        writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア","チャンネルID"])
         writer.writerows(other_rows)
 
     rows = singing_rows + other_rows  # 統計表示用に結合
@@ -910,17 +917,18 @@ def main():
     analyzer = EnhancedAnalyzer()
 
     # 1. 動画情報取得（既存ロジック）
-    uploads_ids: list[str] = []
+    # チャンネルIDとupload playlist IDの対応を保持
+    channel_uploads_map = {}
     for uc in users:
         up = get_uploads_playlist_id(uc)
         if up:
-            uploads_ids.append(up)
+            channel_uploads_map[up] = uc
         else:
             safe_print(f"取得失敗: {uc}")
 
     video_info_list: list[VideoInfo] = []
-    for upid in uploads_ids:
-        video_info_list += get_video_info_in_playlist(upid)
+    for upid, channel_id in channel_uploads_map.items():
+        video_info_list += get_video_info_in_playlist(upid, channel_id=channel_id)
 
     # 2. フィルタリング（すべての動画からタイムスタンプを抽出）
     # 歌枠フィルタリングを無効化し、すべての動画を対象とする
@@ -998,11 +1006,13 @@ def main():
 
         # 確度スコア計算（該当する動画を見つけて計算）
         confidence = 0.0
+        video_channel_id = None
         for vi in filtered_video_list:
             if vi.id == video_id:
                 # 改善版：動画のタイムスタンプを渡す
                 ts_for_video = video_timestamps_map.get(video_id, [])
                 confidence = analyzer.calculate_confidence_score(vi, ts_for_video)
+                video_channel_id = vi.channel_id  # チャンネルIDを取得
                 break
 
         song_title, artist = analyzer.parse_song_title_artist(raw_title)
@@ -1104,6 +1114,7 @@ def main():
         row[0] = i
         is_music = row.pop()  # is_musicフラグを取り出す
         total_seconds = row.pop()  # total_secondsを削除
+        # channel_idはそのまま残す（row[8]）
 
         if is_music:
             singing_rows.append(row)
@@ -1125,12 +1136,12 @@ def main():
 
     with open(output_singing, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア"])
+        writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア","チャンネルID"])
         writer.writerows(singing_rows)
 
     with open(output_other, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア"])
+        writer.writerow(["No","曲","歌手-ユニット","検索用","ジャンル","タイムスタンプ","配信日","動画ID","確度スコア","チャンネルID"])
         writer.writerows(other_rows)
 
     rows = singing_rows + other_rows  # 統計表示用に結合

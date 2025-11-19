@@ -307,7 +307,7 @@ class ChannelManagerGUI:
                 ['python', '-c', '''
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+sys.path.insert(0, "src")
 from extractors.youtube_song_scraper import scrape_channels
 import json
 

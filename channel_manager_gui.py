@@ -20,17 +20,36 @@ load_dotenv()
 class ChannelManagerGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("YouTubeチャンネル管理")
-        self.root.geometry("800x600")
+        self.root.title("YouTubeチャンネル管理 & タイムスタンプ表示")
+        self.root.geometry("1000x700")
 
-        # メインフレーム
-        main_frame = ttk.Frame(root, padding="10")
+        # タブコントロール
+        self.notebook = ttk.Notebook(root)
+        self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
+
+        # タブ1: チャンネル管理
+        self.channel_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.channel_tab, text='チャンネル管理')
+
+        # タブ2: タイムスタンプ表示
+        self.timestamp_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.timestamp_tab, text='タイムスタンプ表示')
+
+        # チャンネル管理タブの内容を構築
+        self.setup_channel_tab()
+
+        # タイムスタンプ表示タブの内容を構築
+        self.setup_timestamp_tab()
+
+    def setup_channel_tab(self):
+        """チャンネル管理タブのUI構築"""
+        main_frame = ttk.Frame(self.channel_tab, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        root.columnconfigure(0, weight=1)
-        root.rowconfigure(0, weight=1)
+        self.channel_tab.columnconfigure(0, weight=1)
+        self.channel_tab.rowconfigure(0, weight=1)
 
         # タイトル
-        title_label = ttk.Label(main_frame, text="YouTubeチャンネル管理", font=('Arial', 16, 'bold'))
+        title_label = ttk.Label(main_frame, text="チャンネル管理", font=('Arial', 16, 'bold'))
         title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
 
         # 既存チャンネルリスト
@@ -308,6 +327,159 @@ class ChannelManagerGUI:
 
         finally:
             self.root.after(0, lambda: self.scrape_button.config(state='normal'))
+
+    def setup_timestamp_tab(self):
+        """タイムスタンプ表示タブのUI構築"""
+        import csv
+        from tkinter import ttk as tkttk
+        from tkinter.ttk import Treeview
+
+        main_frame = ttk.Frame(self.timestamp_tab, padding="10")
+        main_frame.pack(fill='both', expand=True)
+
+        # タイトル
+        title_label = ttk.Label(main_frame, text="タイムスタンプ表示", font=('Arial', 16, 'bold'))
+        title_label.pack(pady=(0, 10))
+
+        # チャンネル選択エリア
+        select_frame = ttk.Frame(main_frame)
+        select_frame.pack(fill='x', pady=(0, 10))
+
+        ttk.Label(select_frame, text="チャンネルを選択:", font=('Arial', 11, 'bold')).pack(side='left', padx=(0, 10))
+
+        self.channel_combo = ttk.Combobox(select_frame, state='readonly', width=30)
+        self.channel_combo.pack(side='left', padx=(0, 10))
+        self.channel_combo.bind('<<ComboboxSelected>>', self.load_timestamps)
+
+        ttk.Button(select_frame, text="更新", command=self.refresh_timestamp_view).pack(side='left', padx=5)
+
+        # 統計情報エリア
+        stats_frame = ttk.LabelFrame(main_frame, text="統計情報", padding="5")
+        stats_frame.pack(fill='x', pady=(0, 10))
+
+        self.stats_label = ttk.Label(stats_frame, text="チャンネルを選択してください", font=('Arial', 9))
+        self.stats_label.pack()
+
+        # タイムスタンプテーブル
+        table_frame = ttk.Frame(main_frame)
+        table_frame.pack(fill='both', expand=True)
+
+        # スクロールバー
+        scrollbar_y = ttk.Scrollbar(table_frame, orient='vertical')
+        scrollbar_y.pack(side='right', fill='y')
+
+        scrollbar_x = ttk.Scrollbar(table_frame, orient='horizontal')
+        scrollbar_x.pack(side='bottom', fill='x')
+
+        # Treeview (テーブル)
+        columns = ('No', '曲名', 'アーティスト', 'ジャンル', 'タイムスタンプ', '配信日', '動画ID')
+        self.tree = Treeview(table_frame, columns=columns, show='headings',
+                            yscrollcommand=scrollbar_y.set,
+                            xscrollcommand=scrollbar_x.set)
+
+        scrollbar_y.config(command=self.tree.yview)
+        scrollbar_x.config(command=self.tree.xview)
+
+        # カラム設定
+        self.tree.heading('No', text='No')
+        self.tree.heading('曲名', text='曲名')
+        self.tree.heading('アーティスト', text='アーティスト')
+        self.tree.heading('ジャンル', text='ジャンル')
+        self.tree.heading('タイムスタンプ', text='TS')
+        self.tree.heading('配信日', text='配信日')
+        self.tree.heading('動画ID', text='動画ID')
+
+        self.tree.column('No', width=50)
+        self.tree.column('曲名', width=200)
+        self.tree.column('アーティスト', width=150)
+        self.tree.column('ジャンル', width=100)
+        self.tree.column('タイムスタンプ', width=80)
+        self.tree.column('配信日', width=100)
+        self.tree.column('動画ID', width=120)
+
+        self.tree.pack(fill='both', expand=True)
+
+        # 初期データ読み込み
+        self.refresh_channel_list()
+
+    def refresh_channel_list(self):
+        """チャンネルリストを更新"""
+        try:
+            with open('user_ids.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            channels = data.get('channels', [])
+            channel_names = ['全チャンネル'] + [f"{ch['name']} ({ch['channel_id']})" for ch in channels if ch.get('enabled', True)]
+
+            self.channel_combo['values'] = channel_names
+            if channel_names:
+                self.channel_combo.current(0)
+                self.load_timestamps(None)
+
+        except Exception as e:
+            messagebox.showerror("エラー", f"チャンネルリスト読み込みエラー:\n{e}")
+
+    def load_timestamps(self, event):
+        """選択したチャンネルのタイムスタンプを読み込み"""
+        import csv
+
+        # テーブルをクリア
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        selected = self.channel_combo.get()
+        if not selected:
+            return
+
+        # チャンネルIDを抽出
+        channel_id = None
+        if selected != '全チャンネル':
+            import re
+            match = re.search(r'\((UC[\w-]+)\)', selected)
+            if match:
+                channel_id = match.group(1)
+
+        # CSVファイルを読み込み
+        try:
+            csv_files = [
+                'output/csv/song_timestamps_singing_only.csv',
+                'output/csv/song_timestamps_other.csv'
+            ]
+
+            total_count = 0
+            for csv_file in csv_files:
+                if not os.path.exists(csv_file):
+                    continue
+
+                with open(csv_file, 'r', encoding='utf-8-sig') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        # チャンネルフィルター
+                        if channel_id and row.get('チャンネルID') != channel_id:
+                            continue
+
+                        # テーブルに追加
+                        self.tree.insert('', 'end', values=(
+                            row.get('No', ''),
+                            row.get('曲', ''),
+                            row.get('歌手-ユニット', ''),
+                            row.get('ジャンル', ''),
+                            row.get('タイムスタンプ', ''),
+                            row.get('配信日', ''),
+                            row.get('動画ID', '')
+                        ))
+                        total_count += 1
+
+            # 統計情報を更新
+            self.stats_label.config(text=f"表示件数: {total_count}件")
+
+        except Exception as e:
+            messagebox.showerror("エラー", f"タイムスタンプ読み込みエラー:\n{e}")
+
+    def refresh_timestamp_view(self):
+        """タイムスタンプビューを更新"""
+        self.load_timestamps(None)
+        messagebox.showinfo("更新", "タイムスタンプを更新しました")
 
 def main():
     root = tk.Tk()

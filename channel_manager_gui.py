@@ -296,19 +296,51 @@ class ChannelManagerGUI:
     def _run_scraping_thread(self):
         """スクレイピングを別スレッドで実行"""
         try:
-            # update_vercel.pyを実行
+            # スクレイピングのみ実行（npmビルドは行わない）
             # Windowsのcp932エンコーディング問題を回避するため、環境変数を設定
             env = os.environ.copy()
             env['PYTHONIOENCODING'] = 'utf-8'
 
+            # scrape_all_channels.pyを直接実行してスクレイピングのみ行う
+            # update_vercel.pyはnpmビルドも含むため使用しない
             process = subprocess.Popen(
-                ['python', 'update_vercel.py', '--auto'],
+                ['python', '-c', '''
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+from extractors.youtube_song_scraper import scrape_channels
+import json
+
+# user_ids.jsonからチャンネルIDを読み込み
+with open("user_ids.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+channels = data.get("channels", [])
+enabled_channels = [ch for ch in channels if ch.get("enabled", True)]
+channel_ids = [ch["channel_id"] for ch in enabled_channels]
+
+# スクレイピング実行（差分更新モード）
+scrape_channels(channel_ids, incremental=True)
+
+# Web表示用JSONを生成
+print("")
+print("=" * 60)
+print("Web表示用JSONを生成中...")
+print("=" * 60)
+os.system("python export_to_web.py")
+
+print("")
+print("=" * 60)
+print("✓ 完了しました！")
+print("=" * 60)
+'''],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 encoding='utf-8',
                 errors='replace',
-                env=env
+                env=env,
+                cwd=os.getcwd()
             )
 
             # 出力をリアルタイムで表示

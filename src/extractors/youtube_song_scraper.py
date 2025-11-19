@@ -766,7 +766,7 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
         classification = music_classifier.classify_timestamp(
             best['song_title'],
             best['artist'],
-            use_itunes=True
+            use_itunes=False  # iTunes API無効化（高速化のため）
         )
 
         genre = analyzer.detect_genre(classification['title'], classification['artist'])

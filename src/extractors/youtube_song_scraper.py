@@ -607,7 +607,7 @@ def scrape_channels(channel_ids: List[str], output_file: str = "output/csv/song_
     safe_print(f"YouTubeタイムスタンプ抽出ツール {mode_text} {update_text}")
     safe_print("=" * 60)
     safe_print(f"対象チャンネル数: {len(channel_ids)}")
-    safe_print()
+    safe_print("")
 
     analyzer = EnhancedAnalyzer()
 

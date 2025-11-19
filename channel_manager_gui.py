@@ -76,9 +76,19 @@ class ChannelManagerGUI:
         self.name_entry = ttk.Entry(main_frame, width=50)
         self.name_entry.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
 
+        # スクレイピングモード選択
+        mode_frame = ttk.LabelFrame(main_frame, text="スクレイピングモード", padding="5")
+        mode_frame.grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 10))
+
+        self.scrape_mode = tk.StringVar(value="incremental")
+        ttk.Radiobutton(mode_frame, text="差分更新（前回以降の動画のみ・高速）",
+                       variable=self.scrape_mode, value="incremental").pack(anchor=tk.W)
+        ttk.Radiobutton(mode_frame, text="全件取得（すべての動画・低速）",
+                       variable=self.scrape_mode, value="full").pack(anchor=tk.W)
+
         # ボタン
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=9, column=0, columnspan=2, pady=(10, 10))
+        button_frame.grid(row=10, column=0, columnspan=2, pady=(10, 10))
 
         self.add_button = ttk.Button(button_frame, text="チャンネル追加", command=self.add_channel)
         self.add_button.grid(row=0, column=0, padx=5)
@@ -90,13 +100,13 @@ class ChannelManagerGUI:
         self.delete_button.grid(row=0, column=2, padx=5)
 
         # ログ出力エリア
-        ttk.Label(main_frame, text="ログ:", font=('Arial', 10, 'bold')).grid(row=10, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
+        ttk.Label(main_frame, text="ログ:", font=('Arial', 10, 'bold')).grid(row=11, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
         self.log_text = scrolledtext.ScrolledText(main_frame, height=10, width=60, state='disabled')
-        self.log_text.grid(row=11, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        self.log_text.grid(row=12, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
 
         # グリッドの重み設定
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(11, weight=1)
+        main_frame.rowconfigure(12, weight=1)
 
         # 初期データ読み込み
         self.load_channels()
@@ -301,10 +311,12 @@ class ChannelManagerGUI:
             env = os.environ.copy()
             env['PYTHONIOENCODING'] = 'utf-8'
 
+            # モード選択を取得
+            is_incremental = self.scrape_mode.get() == "incremental"
+
             # scrape_all_channels.pyを直接実行してスクレイピングのみ行う
             # update_vercel.pyはnpmビルドも含むため使用しない
-            process = subprocess.Popen(
-                ['python', '-c', '''
+            script = f'''
 import sys
 import os
 sys.path.insert(0, "src")
@@ -319,8 +331,8 @@ channels = data.get("channels", [])
 enabled_channels = [ch for ch in channels if ch.get("enabled", True)]
 channel_ids = [ch["channel_id"] for ch in enabled_channels]
 
-# スクレイピング実行（差分更新モード）
-scrape_channels(channel_ids, incremental=True)
+# スクレイピング実行
+scrape_channels(channel_ids, incremental={is_incremental})
 
 # Web表示用JSONを生成
 print("")
@@ -333,7 +345,10 @@ print("")
 print("=" * 60)
 print("✓ 完了しました！")
 print("=" * 60)
-'''],
+'''
+
+            process = subprocess.Popen(
+                ['python', '-c', script],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -382,11 +397,19 @@ print("=" * 60)
         select_frame = ttk.Frame(main_frame)
         select_frame.pack(fill='x', pady=(0, 10))
 
-        ttk.Label(select_frame, text="チャンネルを選択:", font=('Arial', 11, 'bold')).pack(side='left', padx=(0, 10))
+        ttk.Label(select_frame, text="チャンネル:", font=('Arial', 11, 'bold')).pack(side='left', padx=(0, 10))
 
-        self.channel_combo = ttk.Combobox(select_frame, state='readonly', width=30)
-        self.channel_combo.pack(side='left', padx=(0, 10))
+        self.channel_combo = ttk.Combobox(select_frame, state='readonly', width=25)
+        self.channel_combo.pack(side='left', padx=(0, 15))
         self.channel_combo.bind('<<ComboboxSelected>>', self.load_timestamps)
+
+        ttk.Label(select_frame, text="種類:", font=('Arial', 11, 'bold')).pack(side='left', padx=(0, 10))
+
+        self.content_type = ttk.Combobox(select_frame, state='readonly', width=15)
+        self.content_type['values'] = ['全て', '歌枠のみ', 'それ以外']
+        self.content_type.current(0)
+        self.content_type.pack(side='left', padx=(0, 15))
+        self.content_type.bind('<<ComboboxSelected>>', self.load_timestamps)
 
         ttk.Button(select_frame, text="更新", command=self.refresh_timestamp_view).pack(side='left', padx=5)
 
@@ -479,12 +502,22 @@ print("=" * 60)
             if match:
                 channel_id = match.group(1)
 
+        # 種類フィルターを取得
+        content_filter = self.content_type.get()
+
         # CSVファイルを読み込み
         try:
-            csv_files = [
-                'output/csv/song_timestamps_singing_only.csv',
-                'output/csv/song_timestamps_other.csv'
-            ]
+            # 種類フィルターに応じてファイルを選択
+            csv_files = []
+            if content_filter == '全て':
+                csv_files = [
+                    'output/csv/song_timestamps_singing_only.csv',
+                    'output/csv/song_timestamps_other.csv'
+                ]
+            elif content_filter == '歌枠のみ':
+                csv_files = ['output/csv/song_timestamps_singing_only.csv']
+            elif content_filter == 'それ以外':
+                csv_files = ['output/csv/song_timestamps_other.csv']
 
             total_count = 0
             for csv_file in csv_files:

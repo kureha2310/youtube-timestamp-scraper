@@ -11,6 +11,11 @@ import subprocess
 import os
 import re
 import threading
+import requests
+from dotenv import load_dotenv
+
+# .envファイルから環境変数を読み込み
+load_dotenv()
 
 class ChannelManagerGUI:
     def __init__(self, root):
@@ -43,15 +48,18 @@ class ChannelManagerGUI:
 
         ttk.Label(main_frame, text="チャンネルURL または チャンネルID:").grid(row=4, column=0, sticky=tk.W, pady=(5, 0))
         self.url_entry = ttk.Entry(main_frame, width=50)
-        self.url_entry.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 5))
+        self.url_entry.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 2))
 
-        ttk.Label(main_frame, text="チャンネル名 (任意):").grid(row=6, column=0, sticky=tk.W, pady=(5, 0))
+        hint_label = ttk.Label(main_frame, text="例: https://www.youtube.com/@NanyoRyuka", font=('Arial', 8), foreground='gray')
+        hint_label.grid(row=6, column=0, columnspan=2, sticky=tk.W)
+
+        ttk.Label(main_frame, text="チャンネル名 (任意):").grid(row=7, column=0, sticky=tk.W, pady=(5, 0))
         self.name_entry = ttk.Entry(main_frame, width=50)
-        self.name_entry.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.name_entry.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
 
         # ボタン
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=8, column=0, columnspan=2, pady=(10, 10))
+        button_frame.grid(row=9, column=0, columnspan=2, pady=(10, 10))
 
         self.add_button = ttk.Button(button_frame, text="チャンネル追加", command=self.add_channel)
         self.add_button.grid(row=0, column=0, padx=5)
@@ -63,13 +71,13 @@ class ChannelManagerGUI:
         self.delete_button.grid(row=0, column=2, padx=5)
 
         # ログ出力エリア
-        ttk.Label(main_frame, text="ログ:", font=('Arial', 10, 'bold')).grid(row=9, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
+        ttk.Label(main_frame, text="ログ:", font=('Arial', 10, 'bold')).grid(row=10, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
         self.log_text = scrolledtext.ScrolledText(main_frame, height=10, width=60, state='disabled')
-        self.log_text.grid(row=10, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        self.log_text.grid(row=11, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
 
         # グリッドの重み設定
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(10, weight=1)
+        main_frame.rowconfigure(11, weight=1)
 
         # 初期データ読み込み
         self.load_channels()
@@ -110,11 +118,66 @@ class ChannelManagerGUI:
         if match:
             return match.group(1)
 
-        # パターン2: 直接チャンネルIDを入力
+        # パターン2: youtube.com/@username
+        match = re.search(r'youtube\.com/@([\w-]+)', url)
+        if match:
+            username = match.group(1)
+            self.log(f"@{username} からチャンネルIDを取得中...")
+            return self.resolve_username_to_channel_id(username)
+
+        # パターン3: 直接チャンネルIDを入力
         if url.startswith('UC') and len(url) == 24:
             return url
 
         return None
+
+    def resolve_username_to_channel_id(self, username):
+        """@ユーザー名からチャンネルIDを取得（YouTube Data API v3使用）"""
+        api_key = os.getenv('API_KEY')
+        if not api_key:
+            self.log("⚠ API_KEYが見つかりません（.envファイルを確認してください）")
+            return None
+
+        try:
+            # YouTube Data API v3でチャンネル情報を取得
+            url = "https://www.googleapis.com/youtube/v3/channels"
+            params = {
+                'part': 'id',
+                'forHandle': username,  # @ユーザー名の場合
+                'key': api_key
+            }
+
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if 'items' in data and len(data['items']) > 0:
+                channel_id = data['items'][0]['id']
+                self.log(f"✓ チャンネルIDを取得: {channel_id}")
+                return channel_id
+            else:
+                # forHandleで見つからない場合、forUsernameを試す
+                params['forUsername'] = username
+                del params['forHandle']
+
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+
+                if 'items' in data and len(data['items']) > 0:
+                    channel_id = data['items'][0]['id']
+                    self.log(f"✓ チャンネルIDを取得: {channel_id}")
+                    return channel_id
+                else:
+                    self.log(f"⚠ @{username} のチャンネルが見つかりませんでした")
+                    return None
+
+        except requests.exceptions.RequestException as e:
+            self.log(f"⚠ API リクエストエラー: {e}")
+            return None
+        except Exception as e:
+            self.log(f"⚠ エラー: {e}")
+            return None
 
     def add_channel(self):
         """新しいチャンネルを追加"""
@@ -129,7 +192,7 @@ class ChannelManagerGUI:
         channel_id = self.extract_channel_id(channel_url)
 
         if not channel_id:
-            messagebox.showerror("エラー", "有効なチャンネルURLまたはIDを入力してください\n例: https://www.youtube.com/channel/UCxxxxxx\nまたは UCxxxxxx")
+            messagebox.showerror("エラー", "有効なチャンネルURLまたはIDを入力してください\n\n対応形式:\n• https://www.youtube.com/@ユーザー名\n• https://www.youtube.com/channel/UCxxxxxx\n• UCxxxxxx（チャンネルIDを直接入力）")
             return
 
         if not channel_name:

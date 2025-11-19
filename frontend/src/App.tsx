@@ -320,7 +320,7 @@ function App() {
 
                   {/* ホバー時のポップアップ */}
                   {hoveredChannel === channel.id && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50">
                       <div className="bg-slate-900 dark:bg-slate-700 text-white px-3 py-2 rounded-lg shadow-xl text-xs whitespace-nowrap">
                         <div className="flex items-center gap-2 mb-1.5">
                           <img
@@ -334,7 +334,7 @@ function App() {
                           href={`https://www.youtube.com/channel/${channel.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="pointer-events-auto inline-flex items-center gap-1.5 text-indigo-300 hover:text-indigo-200 transition-colors font-medium"
+                          className="inline-flex items-center gap-1.5 text-indigo-300 hover:text-indigo-200 transition-colors font-medium"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <i className="fab fa-youtube text-sm"></i>

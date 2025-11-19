@@ -501,9 +501,11 @@ print("=" * 60)
             match = re.search(r'\((UC[\w-]+)\)', selected)
             if match:
                 channel_id = match.group(1)
+                print(f"[DEBUG] Filtering by channel_id: {channel_id}")  # デバッグ用
 
         # 種類フィルターを取得（content_typeがまだ初期化されていない場合はデフォルトで「全て」）
         content_filter = self.content_type.get() if hasattr(self, 'content_type') else '全て'
+        print(f"[DEBUG] Content filter: {content_filter}")  # デバッグ用
 
         # CSVファイルを読み込み
         try:
@@ -528,8 +530,11 @@ print("=" * 60)
                     reader = csv.DictReader(f)
                     for row in reader:
                         # チャンネルフィルター（チャンネルID列がある場合のみ）
-                        if channel_id and 'チャンネルID' in row and row.get('チャンネルID') != channel_id:
-                            continue
+                        if channel_id and 'チャンネルID' in row:
+                            if row.get('チャンネルID') != channel_id:
+                                continue
+                            else:
+                                print(f"[DEBUG] Matched row: {row.get('曲', '')} - {row.get('チャンネルID')}")  # デバッグ用
 
                         # テーブルに追加
                         self.tree.insert('', 'end', values=(

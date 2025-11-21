@@ -147,11 +147,12 @@ def csv_to_json(csv_input: str, json_output: str, mode_name: str = ""):
             if not row.get('曲'):
                 continue
 
-            # 曲ではないエントリをフィルタリング
+            # 曲ではないエントリは歌枠モードでのみフィルタリング
+            # （それ以外モードではすべて含める）
             song_title = row.get('曲', '').strip()
-            if is_non_song_entry(song_title):
+            if mode_name == '[歌枠モード] ' and is_non_song_entry(song_title):
                 filtered_count += 1
-                print(f'   [フィルター] 除外: {song_title}')
+                print(f'   [フィルター] 除外（非楽曲）: {song_title}')
                 continue
 
             timestamps.append({

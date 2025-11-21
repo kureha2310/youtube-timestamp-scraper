@@ -20,9 +20,9 @@ load_dotenv()
 # 入力・出力パス
 CSV_INPUT_SINGING = 'output/csv/song_timestamps_singing_only.csv'  # 歌枠のみ
 CSV_INPUT_OTHER = 'output/csv/song_timestamps_other.csv'  # アーティストなし（雑談・企画など）
-JSON_OUTPUT_SINGING = 'docs/data/timestamps_singing.json'
-JSON_OUTPUT_OTHER = 'docs/data/timestamps_other.json'
-CHANNELS_OUTPUT = 'docs/data/channels.json'
+JSON_OUTPUT_SINGING = 'frontend/public/data/timestamps_singing.json'
+JSON_OUTPUT_OTHER = 'frontend/public/data/timestamps_other.json'
+CHANNELS_OUTPUT = 'frontend/public/data/channels.json'
 
 # チャンネルID一覧
 CHANNEL_IDS = [

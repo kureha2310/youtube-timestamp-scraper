@@ -51,6 +51,48 @@ def get_channel_id_from_video_id(video_id: str, youtube) -> Optional[str]:
         return None
 
 
+def is_non_song_entry(song_title: str) -> bool:
+    """曲ではないエントリを判定"""
+    # 曲名が空の場合
+    if not song_title or not song_title.strip():
+        return True
+
+    # 除外すべきパターン（完全一致または部分一致）
+    exclude_patterns = [
+        # イベント系
+        '写真タイム', '写真撮影', '記念撮影',
+        '休憩', '休憩タイム', 'トイレ休憩',
+        '乾杯', '乾杯準備',
+        '雑談', '雑談タイム', 'だべりタイム',
+
+        # 配信の区切り系
+        '配信開始', '配信終了', '開始', '終了',
+        '挨拶', '自己紹介', 'おはよう', 'こんにちは', 'こんばんは',
+        '告知', 'お知らせ', '宣伝',
+
+        # 技術・準備系
+        '準備', '待機', 'テスト', '音声テスト', '音テスト',
+        '調整', '確認', 'マイクテスト',
+
+        # その他
+        'メンテナンス', 'メンテ',
+    ]
+
+    # 完全一致チェック
+    song_lower = song_title.strip().lower()
+    for pattern in exclude_patterns:
+        if song_lower == pattern.lower():
+            return True
+
+    # 単独の「タイム」で終わる短い文字列（曲名として不自然）
+    if song_title.endswith('タイム') and len(song_title) <= 6:
+        # ただし「〇〇タイムレコード」「〇〇タイムラバー」など曲名は除外
+        if not any(x in song_title for x in ['レコード', 'ラバー', 'マシン', 'トラベル']):
+            return True
+
+    return False
+
+
 def build_video_to_channel_map(timestamps: list, youtube) -> Dict[str, str]:
     """動画IDからチャンネルIDへのマッピングを作成"""
     print('\n[*] 動画IDからチャンネルIDを取得中...')
@@ -96,12 +138,20 @@ def csv_to_json(csv_input: str, json_output: str, mode_name: str = ""):
 
     timestamps = []
 
+    filtered_count = 0
     with open(csv_input, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
 
         for row in reader:
             # 空行をスキップ
             if not row.get('曲'):
+                continue
+
+            # 曲ではないエントリをフィルタリング
+            song_title = row.get('曲', '').strip()
+            if is_non_song_entry(song_title):
+                filtered_count += 1
+                print(f'   [フィルター] 除外: {song_title}')
                 continue
 
             timestamps.append({
@@ -116,7 +166,7 @@ def csv_to_json(csv_input: str, json_output: str, mode_name: str = ""):
                 '確度スコア': row.get('確度スコア', '')
             })
 
-    print(f'[OK] {len(timestamps)}件のタイムスタンプを読み込みました')
+    print(f'[OK] {len(timestamps)}件のタイムスタンプを読み込みました（{filtered_count}件を除外）')
 
     # YouTube APIを初期化
     api_key = os.getenv('API_KEY')

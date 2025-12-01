@@ -51,7 +51,7 @@ def get_channel_id_from_video_id(video_id: str, youtube) -> Optional[str]:
         return None
 
 
-def is_non_song_entry(song_title: str) -> bool:
+def is_non_song_entry(song_title: str, artist: str = '', confidence_score: float = 1.0) -> bool:
     """曲ではないエントリを判定"""
     # 曲名が空の場合
     if not song_title or not song_title.strip():
@@ -120,6 +120,11 @@ def is_non_song_entry(song_title: str) -> bool:
         if not any(x in song_title for x in ['レコード', 'ラバー', 'マシン', 'トラベル']):
             return True
 
+    # アーティスト空欄 + 確度スコアが低い(0.3以下) = 非楽曲の可能性が高い
+    # ※本物の楽曲でアーティスト不明の場合もあるので、確度スコアも考慮
+    if (not artist or not artist.strip()) and confidence_score <= 0.3:
+        return True
+
     return False
 
 
@@ -180,10 +185,17 @@ def csv_to_json(csv_input: str, json_output: str, mode_name: str = ""):
             # 曲ではないエントリは歌枠モードでのみフィルタリング
             # （それ以外モードではすべて含める）
             song_title = row.get('曲', '').strip()
-            if mode_name == '[歌枠モード] ' and is_non_song_entry(song_title):
+            artist = row.get('歌手-ユニット', '').strip()
+            confidence_score_str = row.get('確度スコア', '1.0').strip()
+            try:
+                confidence_score = float(confidence_score_str) if confidence_score_str else 1.0
+            except ValueError:
+                confidence_score = 1.0
+
+            if mode_name == '[歌枠モード] ' and is_non_song_entry(song_title, artist, confidence_score):
                 filtered_count += 1
                 try:
-                    print(f'   [フィルター] 除外（非楽曲）: {song_title}')
+                    print(f'   [フィルター] 除外（非楽曲）: {song_title} / {artist if artist else "(アーティスト不明)"} (確度:{confidence_score})')
                 except UnicodeEncodeError:
                     print(f'   [フィルター] 除外（非楽曲）: [表示不可]')
                 continue

@@ -64,11 +64,23 @@ def is_non_song_entry(song_title: str) -> bool:
         '休憩', '休憩タイム', 'トイレ休憩',
         '乾杯', '乾杯準備',
         '雑談', '雑談タイム', 'だべりタイム',
+        'ビンゴ', 'ビンゴタイム', 'ビンゴの瞬間',
 
         # 配信の区切り系
-        '配信開始', '配信終了', '開始', '終了',
+        '配信開始', '配信終了', '開始', '終了', 'スタート',
         '挨拶', '自己紹介', 'おはよう', 'こんにちは', 'こんばんは',
         '告知', 'お知らせ', '宣伝',
+        'ばいばーい', 'ばいばい', 'またね', 'さようなら',
+
+        # 自己紹介・プロフィール系
+        '活動内容', '好きなもの', '好きなこと', '好きなアニメ', '好きな曲',
+        'すきなもの', 'すきなこと', 'すきなあにめ',
+        '趣味', '特技', 'プロフィール', '自己紹介',
+        'チャームポイント', 'ちゃーむぽいんと',
+
+        # トーク・コーナー系（質問形式を追加）
+        'お便り', 'おたより', 'マシュマロ', 'スパチャ読み',
+        'コメント返し', '質問コーナー', 'Q&A',
 
         # 技術・準備系
         '準備', '待機', 'テスト', '音声テスト', '音テスト',
@@ -83,6 +95,24 @@ def is_non_song_entry(song_title: str) -> bool:
     for pattern in exclude_patterns:
         if song_lower == pattern.lower():
             return True
+
+    # 部分一致チェック（特定のキーワードを含む場合）
+    if any(keyword in song_lower for keyword in ['好きな', 'すきな']):
+        return True
+
+    # 質問形式のチェック（?や？や⁉︎などで終わる短い文字列は質問コーナー）
+    # 疑問符や感嘆符の様々なバリエーションをチェック
+    question_marks = ('?', '?', '？', '！', '!', '⁉', '⁉︎', '⁈', '‼', '‼︎')
+    if song_title.endswith(question_marks) and len(song_title) <= 30:
+        return True
+
+    # ライバル意識など特定のフレーズ
+    if any(phrase in song_title for phrase in ['ライバル意識', 'らいばる意識']):
+        return True
+
+    # ママ/パパなどの呼称（配信者の家族に関する質問）
+    if any(keyword in song_title for keyword in ['ママ', 'まま', 'パパ', 'ぱぱ']) and len(song_title) <= 20:
+        return True
 
     # 単独の「タイム」で終わる短い文字列（曲名として不自然）
     if song_title.endswith('タイム') and len(song_title) <= 6:
@@ -152,7 +182,10 @@ def csv_to_json(csv_input: str, json_output: str, mode_name: str = ""):
             song_title = row.get('曲', '').strip()
             if mode_name == '[歌枠モード] ' and is_non_song_entry(song_title):
                 filtered_count += 1
-                print(f'   [フィルター] 除外（非楽曲）: {song_title}')
+                try:
+                    print(f'   [フィルター] 除外（非楽曲）: {song_title}')
+                except UnicodeEncodeError:
+                    print(f'   [フィルター] 除外（非楽曲）: [表示不可]')
                 continue
 
             timestamps.append({

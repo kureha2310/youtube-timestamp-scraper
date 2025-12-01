@@ -111,44 +111,66 @@ No,曲,歌手-ユニット,検索用,ジャンル,タイムスタンプ,配信�
 
 ```
 youtube-timestamp-scraper/
-├── main.py                  # メインエントリーポイント
-├── user_ids.json            # チャンネル設定
-├── config.json              # 基本設定
-├── .env                     # APIキー（要作成）
+├── 🚀 メインスクリプト
+│   ├── main.py                  # メインエントリーポイント
+│   ├── update_web.py            # Web更新（推奨・日常使用）
+│   ├── update_vercel.py         # Vercel更新（フロントビルド含む）
+│   ├── export_to_web.py         # CSV→JSON変換
+│   ├── search_text.py           # 文字列検索ツール
+│   └── channel_manager_gui.py   # GUIチャンネル管理
 │
-├── src/
+├── 📁 scripts/                  # その他スクリプト
+│   ├── scrape/                  # スクレイピング系
+│   │   ├── scrape_all_channels.py
+│   │   ├── scrape_latest.py
+│   │   ├── scrape_all_dual_mode.py
+│   │   └── scrape_mitsu.py
+│   ├── classify/                # 分類・整理系
+│   │   ├── auto_classify_genres.py
+│   │   ├── reclassify_genres.py
+│   │   └── reclassify_non_songs.py
+│   ├── split/                   # データ分割系
+│   │   ├── split_csv_by_artist.py
+│   │   └── split_csv_other.py
+│   └── utils/                   # ユーティリティ系
+│       ├── get_channel_names.py
+│       ├── check_channel_counts.py
+│       ├── check_unknown_channel.py
+│       └── merge_csv_data.py
+│
+├── 📚 src/                      # コアライブラリ
 │   ├── extractors/
 │   │   ├── youtube_song_scraper.py     # メインロジック（最重要）
-│   │   ├── single_video_extractor.py   # 単一動画抽出
-│   │   ├── youtube_scraper_enhanced.py # 一括抽出
-│   │   ├── transcript_only_scraper.py  # トランスクリプト抽出
-│   │   └── bulk_transcript_scraper.py  # 一括トランスクリプト
-│   │
+│   │   ├── single_video_extractor.py
+│   │   ├── youtube_scraper_enhanced.py
+│   │   ├── transcript_only_scraper.py
+│   │   └── bulk_transcript_scraper.py
 │   ├── utils/
-│   │   ├── genre_classifier.py  # ジャンル分類
-│   │   ├── channel_manager.py   # チャンネル管理
-│   │   ├── infoclass.py         # データクラス
-│   │   └── utils.py             # ユーティリティ関数
-│   │
+│   │   ├── genre_classifier.py
+│   │   ├── channel_manager.py
+│   │   ├── infoclass.py
+│   │   └── utils.py
 │   └── analyzers/
-│       └── transcript_topic_analyzer.py  # 話題分析
+│       └── transcript_topic_analyzer.py
 │
-├── config/
-│   └── genre_keywords.json  # ジャンル分類キーワード辞書
+├── ⚙️ config/
+│   ├── genre_keywords.json      # ジャンル分類キーワード辞書
+│   ├── config.json              # 基本設定
+│   └── .env                     # APIキー（要作成）
 │
-├── docs/
-│   ├── SYSTEM_SPECIFICATION.md          # 詳細仕様書
-│   ├── QUICK_REFERENCE.md               # クイックリファレンス
-│   └── confidence_score_improvements.md # 確度スコア改善案
+├── 📖 docs/                     # ドキュメント
+│   ├── SETUP_GUIDE.md
+│   ├── SEARCH_EXAMPLE.md
+│   ├── SPOTIFY_SETUP.md
+│   └── [その他ドキュメント]
 │
-├── tools/
-│   ├── reclassify_genres.py    # CSV再分類ツール
-│   ├── tag_classifier.py       # タグ別分類ツール
-│   └── build_tag_reference.py  # タグ参照構築
+├── 🌐 frontend/                 # Webフロントエンド
+│   └── [Vite + React]
 │
-├── legacy/                      # 旧バージョンファイル
-│
-└── output/                      # 出力ディレクトリ
+├── 🔧 tools/                    # ツール類
+├── 📦 legacy/                   # 旧バージョンファイル
+├── 🧪 tests/                    # テスト
+└── 📊 output/                   # 出力ディレクトリ
     ├── csv/
     └── json/
 ```

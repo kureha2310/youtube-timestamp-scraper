@@ -23,9 +23,9 @@ output/
 .DS_Store
 Thumbs.db
 
-# テスト/デバッグファイル
-test_*.py
-check_*.py
+# テスト/デバッグファイル（ルートのみ無視、scripts/内は追跡）
+/test_*.py
+/check_*.py
 raw_*.txt
 comment_preview.txt
 **hoge**

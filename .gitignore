@@ -29,6 +29,21 @@ check_*.py
 raw_*.txt
 comment_preview.txt
 **hoge**
+NUL
+
+# Node modules
+frontend/node_modules/
+
+# ビルド成果物
+frontend/dist/
+docs/assets/
+
+# キャッシュ
+.cache
+last_scrape.json
+
+# API
+api/__pycache__/
 
 # バックアップファイル
 *.bak

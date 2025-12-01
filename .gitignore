@@ -1,10 +1,16 @@
 # 環境設定
 .env
+config/.env
 .venv
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# APIキー（重要！）
+config/api_key.txt
+*.key
+*_key.txt
 
 # Spotify API
 config/spotify_cache.json

@@ -57,6 +57,10 @@ def is_non_song_entry(song_title: str, artist: str = '', confidence_score: float
     if not song_title or not song_title.strip():
         return True
 
+    # コロンで始まるタイトル（例: ":5 気持ち良すぎる"）
+    if song_title.strip().startswith(':'):
+        return True
+
     # 除外すべきパターン（完全一致または部分一致）
     exclude_patterns = [
         # イベント系
@@ -86,6 +90,10 @@ def is_non_song_entry(song_title: str, artist: str = '', confidence_score: float
         '準備', '待機', 'テスト', '音声テスト', '音テスト',
         '調整', '確認', 'マイクテスト',
 
+        # 配信中の出来事・リアクション系
+        '音注意', '視聴', '美味しい',
+        'ノルマ', 'ノルマ達成',
+
         # その他
         'メンテナンス', 'メンテ',
     ]
@@ -98,6 +106,18 @@ def is_non_song_entry(song_title: str, artist: str = '', confidence_score: float
 
     # 部分一致チェック（特定のキーワードを含む場合）
     if any(keyword in song_lower for keyword in ['好きな', 'すきな']):
+        return True
+
+    # 配信中の出来事キーワード
+    if any(keyword in song_lower for keyword in ['間違い探し', '間違いさがし', 'バグった', 'クマった']):
+        return True
+
+    # 感嘆・リアクション系（「～～～」など繰り返し記号が多い）
+    if song_title.count('～') >= 4 or song_title.count('ー') >= 3:
+        return True
+
+    # 「遊び始める」「美味しい」などの配信者の行動・状態
+    if any(keyword in song_lower for keyword in ['遊び始める', '始める', 'いぬ', 'わかった！わかってない']):
         return True
 
     # 質問形式のチェック（?や？や⁉︎などで終わる短い文字列は質問コーナー）
@@ -164,15 +184,28 @@ def build_video_to_channel_map(timestamps: list, youtube) -> Dict[str, str]:
 
 
 def csv_to_json(csv_input: str, json_output: str, mode_name: str = ""):
-    """CSVをJSONに変換"""
+    """CSVをJSONに変換（既存データとマージ）"""
     print(f'\n[*] {mode_name}CSVファイルを読み込み中...')
 
     if not os.path.exists(csv_input):
         print(f'[!] CSVファイルが見つかりません: {csv_input}')
         return
 
-    timestamps = []
+    # 既存のJSONデータを読み込み
+    existing_timestamps = []
+    if os.path.exists(json_output):
+        print(f'[*] 既存のJSONデータを読み込み中: {json_output}')
+        try:
+            with open(json_output, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+                existing_timestamps = existing_data.get('timestamps', [])
+                print(f'   既存データ: {len(existing_timestamps)}件')
+        except Exception as e:
+            print(f'[!] 既存JSONの読み込みエラー: {e}')
+            existing_timestamps = []
 
+    # CSVから新しいデータを読み込み
+    new_timestamps = []
     filtered_count = 0
     with open(csv_input, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
@@ -200,7 +233,7 @@ def csv_to_json(csv_input: str, json_output: str, mode_name: str = ""):
                     print(f'   [フィルター] 除外（非楽曲）: [表示不可]')
                 continue
 
-            timestamps.append({
+            new_timestamps.append({
                 'No': row.get('No', ''),
                 '曲': row.get('曲', ''),
                 '歌手-ユニット': row.get('歌手-ユニット', ''),
@@ -212,7 +245,27 @@ def csv_to_json(csv_input: str, json_output: str, mode_name: str = ""):
                 '確度スコア': row.get('確度スコア', '')
             })
 
-    print(f'[OK] {len(timestamps)}件のタイムスタンプを読み込みました（{filtered_count}件を除外）')
+    print(f'[OK] CSVから{len(new_timestamps)}件のタイムスタンプを読み込みました（{filtered_count}件を除外）')
+
+    # 既存データと新データをマージ（重複を除去）
+    # キーは「動画ID + タイムスタンプ + 曲名」で一意性を判定
+    merged_map = {}
+
+    # 既存データを辞書に追加
+    for ts in existing_timestamps:
+        key = f"{ts.get('動画ID', '')}_{ts.get('タイムスタンプ', '')}_{ts.get('曲', '')}"
+        merged_map[key] = ts
+
+    # 新データを追加（重複は上書き）
+    new_count = 0
+    for ts in new_timestamps:
+        key = f"{ts.get('動画ID', '')}_{ts.get('タイムスタンプ', '')}_{ts.get('曲', '')}"
+        if key not in merged_map:
+            new_count += 1
+        merged_map[key] = ts
+
+    timestamps = list(merged_map.values())
+    print(f'[*] マージ結果: 既存{len(existing_timestamps)}件 + 新規{new_count}件 = 合計{len(timestamps)}件')
 
     # YouTube APIを初期化
     api_key = os.getenv('API_KEY')
@@ -230,6 +283,9 @@ def csv_to_json(csv_input: str, json_output: str, mode_name: str = ""):
             ts['チャンネルID'] = video_to_channel[video_id]
         else:
             ts['チャンネルID'] = ''
+
+    # 配信日でソート（新しい順）
+    timestamps.sort(key=lambda x: x.get('配信日', ''), reverse=True)
 
     # JSON出力
     output_data = {

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+1#!/usr/bin/env python3
 """
 チャンネル管理GUI
 新しいチャンネルの追加とスクレイピング実行をGUIで操作できます

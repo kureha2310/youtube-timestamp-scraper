@@ -8,13 +8,13 @@ on:
   # 手動実行も可能
   workflow_dispatch:
 
-  # プッシュ時にもテスト実行（mainブランチのみ）
-  push:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - 'export_to_web.py'
+  # プッシュ時の自動実行は無効化（無限ループ防止）
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'src/**'
+  #     - 'export_to_web.py'
 
 permissions:
   contents: write
@@ -40,27 +40,33 @@ jobs:
           pip install --upgrade pip
           pip install -r config/requirements.txt
 
-      - name: Run scraper for all channels
+      - name: Run scraper for all channels (incremental update)
         env:
           API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: |
           python -c "
           from src.extractors.youtube_song_scraper import main
 
-          print('全チャンネルのタイムスタンプをスクレイピング中...')
+          print('=' * 70)
+          print('全チャンネルのタイムスタンプをスクレイピング中（差分更新）...')
+          print('=' * 70)
           try:
               main()
               print('スクレイピング完了！')
           except Exception as e:
               print(f'エラー: {e}')
+              import traceback
+              traceback.print_exc()
               raise
           "
 
-      - name: Export data to JSON
+      - name: Export data to JSON (with merge)
         env:
           API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: |
+          echo "既存JSONとマージしながらエクスポート中..."
           python export_to_web.py
+          echo "エクスポート完了"
 
       - name: Commit and push if changed
         uses: stefanzweifel/git-auto-commit-action@v5

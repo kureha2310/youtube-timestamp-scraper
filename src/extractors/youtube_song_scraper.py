@@ -923,7 +923,19 @@ def main():
 
     analyzer = EnhancedAnalyzer()
 
-    # 1. 動画情報取得（既存ロジック）
+    # 差分更新のための前回実行日時を読み込む
+    published_after = None
+    try:
+        with open('last_scrape.json', 'r', encoding='utf-8') as f:
+            last_scrape_data = json.load(f)
+            last_run = last_scrape_data.get('last_run')
+            if last_run:
+                published_after = last_run
+                safe_print(f"[差分更新] {last_run} 以降の動画を取得します")
+    except FileNotFoundError:
+        safe_print("[全件取得] 初回実行またはlast_scrape.jsonが見つかりません")
+
+    # 1. 動画情報取得（差分更新対応）
     # チャンネルIDとupload playlist IDの対応を保持
     channel_uploads_map = {}
     for uc in users:
@@ -935,7 +947,7 @@ def main():
 
     video_info_list: list[VideoInfo] = []
     for upid, channel_id in channel_uploads_map.items():
-        video_info_list += get_video_info_in_playlist(upid, channel_id=channel_id)
+        video_info_list += get_video_info_in_playlist(upid, published_after=published_after, channel_id=channel_id)
 
     # 2. フィルタリング（すべての動画からタイムスタンプを抽出）
     # 歌枠フィルタリングを無効化し、すべての動画を対象とする
@@ -1188,6 +1200,15 @@ def main():
     vi_dict = [asdict(vi) for vi in filtered_video_list]
     aligned_json_dump(vi_dict, "output/json/comment_info.json")
     safe_print(f"\nバックアップJSONも作成: output/json/comment_info.json")
+
+    # 差分更新のため、実行日時を記録
+    now = datetime.now(timezone.utc).isoformat()
+    with open('last_scrape.json', 'w', encoding='utf-8') as f:
+        json.dump({
+            'last_run': now,
+            'note': 'このファイルは最後にスクレイプした日時を記録します'
+        }, f, ensure_ascii=False, indent=2)
+    safe_print(f"\n[差分更新] 次回実行時は {now} 以降の動画を取得します")
 
 if __name__ == "__main__":
     main()

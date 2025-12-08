@@ -1,12 +1,12 @@
-name: Auto Update Timestamps
+name: Auto Update Timestamps (DISABLED - Use update-data.yml instead)
 
 on:
-  # 手動実行
+  # 手動実行のみ
   workflow_dispatch:
 
-  # スケジュール実行（毎日午前9時 JST = UTC 0時）
-  schedule:
-    - cron: '0 0 * * *'
+  # スケジュール実行を無効化（update-data.ymlを使用）
+  # schedule:
+  #   - cron: '0 0 * * *'
 
 jobs:
   update:

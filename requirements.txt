@@ -1,11 +1,6 @@
-# YouTube timestamp scraper dependencies
-
-# Core dependencies
-pandas>=2.0.0
-requests>=2.31.0
-
-# Spotify API integration
-spotipy>=2.23.0
-
-# Optional: for future LLM integration
-# anthropic>=0.18.0
+google-api-python-client==2.110.0
+youtube-transcript-api==0.6.2
+requests==2.31.0
+python-dateutil==2.8.2
+python-dotenv==1.0.0
+anthropic==0.73.0

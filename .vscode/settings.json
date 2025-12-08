@@ -1,7 +1,4 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:system",
-    "python-envs.pythonProjects": [],
-    "terminal.integrated.env.windows": {
-        "CLAUDE_CODE_GIT_BASH_PATH": "C:\\Program Files\\Git\\usr\\bin\\bash.exe"
-    }
+    "python-envs.pythonProjects": []
 }

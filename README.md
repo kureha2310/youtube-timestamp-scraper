@@ -244,9 +244,18 @@ python search_text.py UCxxxxxx "検索文字列" --all --max-videos 100
 
 ## 📖 ドキュメント
 
-- **[SYSTEM_SPECIFICATION.md](docs/SYSTEM_SPECIFICATION.md)** - 詳細な技術仕様
-- **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - 開発者向けクイックリファレンス
-- **[TEXT_SEARCH_GUIDE.md](docs/TEXT_SEARCH_GUIDE.md)** - 文字列検索ツール使い方ガイド
+### 開発者向けガイド
+
+- **[claude.md](claude.md)** - Claude Code開発ルール（AI協働開発の必読ガイド）
+- **[AI開発ガイド](docs/workflows/AI_DEVELOPMENT_GUIDE.md)** - AIとの効率的な協働方法
+- **[改善タスクリスト](docs/IMPROVEMENT_TASKS.md)** - プロジェクト改善項目（優先度付き）
+- **[指示履歴の記録ガイド](docs/workflows/INSTRUCTION_LOGGING_GUIDE.md)** - 作業記録の取り方
+
+### ユーザー向けガイド
+
+- **[セットアップガイド](docs/SETUP_GUIDE.md)** - 初期セットアップ手順
+- **[検索ツール使い方](docs/SEARCH_EXAMPLE.md)** - テキスト検索ツールの使用例
+- **[Spotify連携](docs/SPOTIFY_SETUP.md)** - Spotify API統合ガイド
 
 ## ⚠️ 注意事項
 
